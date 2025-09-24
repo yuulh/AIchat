@@ -1,34 +1,63 @@
 #include <chatBp.h>
+#include <Log.h>
+#include <Configuration.h>
 
 void ChatBp::setBP()
 {
-    bp.GET("/chat", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp)
+    bp.POST("/chat", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp)
     {
-        
+        /*
+        用户发送一个消息，内容应该为：
+        {
+            assistant_id: string,   // 角色id，用于查询角色设定
+            conversation_id: string,  // 会话id，用于跟踪会话，保持记忆
+            messages: [{
+                role: string,
+                content: [
+                    type: string,
+                    text: string,
+                ],
+            }],
+            data: {},  // 额外的数据
+        }
+        */
+        json body = json::parse(req->body());
+        // redis中查询角色id，失败则查询数据库
+        // 通过角色id获取角色设定等，不存在则不带任何设定
+        // 获取会话id
+        // 会话不存在则开启新会话
+        // 存在则获取上下文
+        // 拼接上下文
+        // 发送到大模型
+
+
+        // 获取结果
+        // 返回给用户
+
     });
 }
 
 ChatBp::ChatBp()
+: httpClient(HttpClient(CONFIG["LLM_URL"]))
 {
-
 }
 
 ChatBp::ChatBp(const string &key)
 : key(key)
+, httpClient(HttpClient(CONFIG["LLM_URL"]))
 {
-
 }
 
 void ChatBp::setContext(void *context)
 {
-
+    this->context = context;
 }
 
 int ChatBp::sendMessage(const string &message)
 {
-
+    
 }
-
+/* 
 class ChatBp : public BpBase{
     string key;  // api key
 public:
@@ -46,4 +75,4 @@ public:
     vector<string> assistant;  // 模型的历史回复
     
     void *context;  // 对象间通信用
-};
+}; */
