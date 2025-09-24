@@ -2,9 +2,28 @@
   <div class="app-layout">
     <div class="sidebar">
       <div class="logo-section">
-        <img src="@/assets/logo.png" alt="小燕子" width="160" height="160" />
-        <span class="logo-text">ai虚拟角色聊天</span>
+        <img src="../assets/哈利波特.jpg" id="logo-img" width="160" height="160" class="logo-img" />
+        <!-- alt="" -->
+        <span class="logo-text" id="logo-text">哈利波特</span>
       </div>
+      <el-button class="new-chat-button" @click="dialogVisible = true">
+        <i class="fa-solid fa-user"></i>
+        &nbsp;切换角色
+      </el-button>
+      <!-- 切换角色对话框 -->
+      <el-dialog v-model="dialogVisible" title="请选择您想要对话的角色" :before-close="handleClose" max-width="640px">
+        <div class="selectUsers">
+          <div v-for="(user, index) in users" :key="index" :id="user.name"
+          class="select-user" @click="changeUser(user.img, user.name)">
+            <img :src="user.img" class="select-img" />
+            <a style="font-size:20px">{{ user.name }}</a>
+          </div>
+        </div>
+
+      </el-dialog>
+
+      <div></div>
+
       <el-button class="new-chat-button" @click="newChat">
         <i class="fa-solid fa-plus"></i>
         &nbsp;新会话
@@ -13,29 +32,18 @@
     <div class="main-content">
       <div class="chat-container">
         <div class="message-list" ref="messaggListRef">
-          <div
-            v-for="(message, index) in messages"
-            :key="index"
-            :class="
-              message.isUser ? 'message user-message' : 'message bot-message'
-            "
-          >
+          <div v-for="(message, index) in messages" :key="index" :class="message.isUser ? 'message user-message' : 'message bot-message'
+            ">
             <!-- 会话图标 -->
-            <i
-              :class="
-                message.isUser
-                  ? 'fa-solid fa-user message-icon'
-                  : 'fa-solid fa-robot message-icon'
-              "
-            ></i>
+            <i :class="message.isUser
+              ? 'fa-solid fa-user message-icon'
+              : 'fa-solid fa-robot message-icon'
+              "></i>
             <!-- 会话内容 -->
             <span>
               <span v-html="message.content"></span>
               <!-- loading -->
-              <span
-                class="loading-dots"
-                v-if="message.isThinking || message.isTyping"
-              >
+              <span class="loading-dots" v-if="message.isThinking || message.isTyping">
                 <span class="dot"></span>
                 <span class="dot"></span>
               </span>
@@ -43,14 +51,8 @@
           </div>
         </div>
         <div class="input-container">
-          <el-input
-            v-model="inputMessage"
-            placeholder="请输入消息"
-            @keyup.enter="sendMessage"
-          ></el-input>
-          <el-button @click="sendMessage" :disabled="isSending" type="primary"
-            >发送</el-button
-          >
+          <el-input v-model="inputMessage" placeholder="请输入消息" @keyup.enter="sendMessage"></el-input>
+          <el-button @click="sendMessage" :disabled="isSending" type="primary">发送</el-button>
         </div>
       </div>
     </div>
@@ -67,6 +69,10 @@ const isSending = ref(false)
 const uuid = ref()
 const inputMessage = ref('')
 const messages = ref([])
+const dialogVisible = ref(false);
+const users = ref([{ img: "src/assets/哈利波特.jpg", name: "哈利波特" },
+{ img: "src/assets/苏格拉底.jpg", name: "苏格拉底" }
+])
 
 onMounted(() => {
   initUUID()
@@ -74,6 +80,14 @@ onMounted(() => {
   watch(messages, () => scrollToBottom(), { deep: true })
   hello()
 })
+
+const changeUser = (img,name) => {
+  const mainImg=document.getElementById("logo-img");
+  const mainName=document.getElementById("logo-text");
+  mainImg.src=img;
+  mainName.innerHTML=name;
+  dialogVisible.value=false;
+}
 
 const scrollToBottom = () => {
   if (messaggListRef.value) {
@@ -101,7 +115,7 @@ const sendRequest = (message) => {
     isThinking: false,
   }
   //第一条默认发送的用户消息”你好“不放入会话列表
-  if(messages.value.length > 0){
+  if (messages.value.length > 0) {
     messages.value.push(userMsg)
   }
 
@@ -205,6 +219,11 @@ const newChat = () => {
   align-items: center;
 }
 
+.logo-img {
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .logo-text {
   font-size: 18px;
   font-weight: bold;
@@ -216,11 +235,29 @@ const newChat = () => {
   margin-top: 20px;
 }
 
+.selectUsers {
+  display: flex;
+  flex-direction: row;
+}
+
+.select-user {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.select-img {
+  width: 160px;
+  height: 160px;
+  object-fit: cover;
+}
+
 .main-content {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
 }
+
 .chat-container {
   display: flex;
   flex-direction: column;
@@ -284,6 +321,7 @@ const newChat = () => {
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     transform: scale(0.6);
@@ -295,6 +333,7 @@ const newChat = () => {
     opacity: 1;
   }
 }
+
 .input-container {
   display: flex;
 }
@@ -309,6 +348,7 @@ const newChat = () => {
   .main-content {
     padding: 10px 0 10px 0;
   }
+
   .app-layout {
     flex-direction: column;
   }
