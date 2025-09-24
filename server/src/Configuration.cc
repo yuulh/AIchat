@@ -30,6 +30,8 @@ void Configuration::init()
         {"MySQL_PORT", "3306"},  // mysql数据库端口
         {"MySQL_USER", "123"},
         {"MySQL_PASSWORD", "123"},
+        {"Redis_HOST", "127.0.0.1"},
+        {"Redis_PORT", "6379"},
     };
 
     ifstream ifs(this->path);
