@@ -2,7 +2,7 @@
 #define CHATBP_H
 
 #include "BpBase.h"
-#include "../client/HttpClient.h"
+#include "HttpClient.h"
 #include <wfrest/BluePrint.h>
 #include <wfrest/Json.h>
 #include <string>

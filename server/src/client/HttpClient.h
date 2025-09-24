@@ -1,7 +1,6 @@
 #ifndef HTTPCLIENT_H
 #define HTTPCLIENT_H
 
-#include "BpBase.h"
 #include <string>
 #include <workflow/WFTaskFactory.h>
 #include <nlohmann/json.hpp>
@@ -11,7 +10,7 @@ using namespace nlohmann;
 using std::string;
 using std::vector;
 
-class HttpClient : BpBase{
+class HttpClient{
 public:
     string url;
 

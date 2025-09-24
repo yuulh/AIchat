@@ -21,17 +21,15 @@ class MySqlClient {
 
     bool connected;
 public:
+
     MySqlClient(const string &host, const string &user, const string &password, const string &database);
     ~MySqlClient();
-    int execute(const string &sql);
+    string MySqlClient::execute(HttpResp *resp, const string &sql);
     vector<vector<string>> query(const string &sql);
-    int getLastInsertId();
-    int getAffectedRows();
-    int getErrorCode();
-    string getErrorMessage();
+    string getUrl() const;
 
 private:
     void *mysql;
-}
+};
 
 #endif
