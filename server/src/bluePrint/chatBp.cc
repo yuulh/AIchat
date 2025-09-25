@@ -1,9 +1,63 @@
-#include <chatBp.h>
-#include <Log.h>
-#include <Configuration.h>
+#include "chatBp.h"
+#include "../Log.h"
+#include "../Configuration.h"
+#include <wfrest/HttpServer.h>
 
 void ChatBp::setBP()
 {
+    // 获取角色列表
+    // /assistant/list?tag=all&page=1&page_size=10
+    bp.GET("/assistant/list", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp){
+        sprintf(logBuf, "get req %s", req->get_request_uri());
+        LOG_DEBUG_BUF;
+
+        const string &tag = req->query("tag");
+        const int &page = req->query("page").empty() ? 1 : atoi(req->query("page").c_str());
+        const int &page_size = req->query("page_size").empty() ? 10 : atoi(req->query("page_size").c_str());
+        int offset = (page - 1) * page_size;
+
+        if(tag.empty()) {
+            resp->set_status(HttpStatusBadRequest);
+            return;
+        }
+
+        auto getKeyName = [](const string &tag, const int &page, const int &page_size) {
+            return "assistant_" + tag + "_page_" + std::to_string(page) + "&" + std::to_string(page_size);
+        };
+
+        if(redisClient){
+            string key = getKeyName(tag, page, page_size);
+            redisClient->GET(key);
+            redisClient->wait();
+
+            vector<string> redis_ret;
+            redisClient->getResp(redisClient->redis_resp, redis_ret);
+            if(redis_ret.empty()) {
+                // 去数据库查询
+                mysqlClient->setDB("AIchat");
+                mysqlClient->execute("SELECT * FROM assistant_" + tag + " LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size));
+                
+                auto &ret = mysqlClient->syncGetResp();
+
+                if(!ret){
+                    LOG_ERROR("mysql query is null");
+                }
+
+                redisClient->SET(key, ret.dump());
+
+                // resp->Json(ret);
+                resp->String(ret.dump());
+            }else{
+                // 缓存命中
+                resp->Json(redis_ret[0]);
+            }
+        }else{
+            LOG_ERROR("redisClient is null");
+            resp->String("服务器查询失败");
+        }
+    });
+
+    // 与模型聊天
     bp.POST("/chat", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp)
     {
         /*
@@ -38,13 +92,19 @@ void ChatBp::setBP()
 }
 
 ChatBp::ChatBp()
-: httpClient(HttpClient(CONFIG["LLM_URL"]))
+: httpClient(new HttpClient(CONFIG["LLM_URL"]))
 {
 }
 
 ChatBp::ChatBp(const string &key)
 : key(key)
-, httpClient(HttpClient(CONFIG["LLM_URL"]))
+, mysqlClient(new MySqlClient(CONFIG["MySQL_HOST"], CONFIG["MySQL_PORT"],
+              CONFIG["MySQL_USER"], CONFIG["MySQL_PASSWORD"],
+              CONFIG["MySQL_DATABASE"], atoi(CONFIG["Retry_MAX"].c_str())))
+, redisClient(new RedisClient(CONFIG["Redis_HOST"], CONFIG["Redis_PORT"],
+              CONFIG["Redis_PASSWORD"], CONFIG["Redis_DATABASE"],
+              atoi(CONFIG["Retry_MAX"].c_str())))
+, httpClient(new HttpClient(CONFIG["LLM_URL"]))
 {
 }
 
@@ -55,7 +115,7 @@ void ChatBp::setContext(void *context)
 
 int ChatBp::sendMessage(const string &message)
 {
-    
+    return 0;
 }
 /* 
 class ChatBp : public BpBase{

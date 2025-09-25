@@ -12,9 +12,9 @@ using std::string;
 
 string dirname = "/usr/AIchat";
 
-string configPath = dirname + "/config/config.conf";
+string configPath = dirname + "/server/config/config.conf";
 
-char logBuf[1024];  // 供全局使用的logBuf
+char logBuf[4096];  // 供全局使用的logBuf
 
 // 初始化静态成员
 Configuration *Configuration::p = nullptr;
@@ -24,12 +24,16 @@ void Configuration::init()
 {
     // 加载默认配置
     this->configs = {
-        {"port", "8090"},  // 启动端口
+        {"logConfigPath", dirname + "/server/config/log4cpp.conf"},
+        {"PORT", "8090"},  // 启动端口
         {"LLM_URL", "https://openai.qiniu.com/v1/chat/completions"},  // 大模型api的url
         {"MySQL_HOST", "127.0.0.1"},  // mysql数据库地址"
         {"MySQL_PORT", "3306"},  // mysql数据库端口
         {"MySQL_USER", "123"},
         {"MySQL_PASSWORD", "123"},
+        {"Redis_HOST", "127.0.0.1"},
+        {"Redis_PORT", "6379"},
+        {"Retry_MAX", "3"}  // 最大重试次数
     };
 
     ifstream ifs(this->path);

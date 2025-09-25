@@ -1,90 +1,90 @@
-#include "RocketConsumer.h"
+// #include "RocketConsumer.h"
 
-MessageListener::MessageListener()
-{
-}
+// MessageListener::MessageListener()
+// {
+// }
 
-MessageListener::MessageListener(const message_callback_t& cb)
-    : callback(cb)
-{
-}
+// MessageListener::MessageListener(const message_callback_t& cb)
+//     : callback(cb)
+// {
+// }
 
-MessageListener::MessageListener(const Resource &resource, const message_callback_t& cb)
-    : callback(cb), resource(resource)
-{
-}
+// MessageListener::MessageListener(const Resource &resource, const message_callback_t& cb)
+//     : callback(cb), resource(resource)
+// {
+// }
 
-ConsumeStatus MessageListener::handleMessageCB(const std::vector<MQMessageExt> &msgs)
-{
-    if(this->callback){
-        callback(msgs, this->resource);
-    }
-}
+// ConsumeStatus MessageListener::handleMessageCB(const std::vector<MQMessageExt> &msgs)
+// {
+//     if(this->callback){
+//         callback(msgs, this->resource);
+//     }
+// }
 
-void MessageListener::setMessageCB(const message_callback_t& cb)
-{
-    this->callback = cb;
-}
+// void MessageListener::setMessageCB(const message_callback_t& cb)
+// {
+//     this->callback = cb;
+// }
 
-void MessageListener::setResouce(const Resource &p)
-{
-    this->resource = p;
-}
+// void MessageListener::setResouce(const Resource &p)
+// {
+//     this->resource = p;
+// }
 
-ConsumeStatus MessageListener::consumeMessage(const std::vector<MQMessageExt>& msgs)
-{
-    handleMessageCB(msgs);
-}
-
-
-/*------------------------------------------------------*/
+// ConsumeStatus MessageListener::consumeMessage(const std::vector<MQMessageExt>& msgs)
+// {
+//     handleMessageCB(msgs);
+// }
 
 
-MqConsumer::MqConsumer()
-    :consumer("DefaultGroup")
-{
+// /*------------------------------------------------------*/
 
-}
 
-MqConsumer::MqConsumer(const std::string& group)
-    :consumer(group)
-{
+// MqConsumer::MqConsumer()
+//     :consumer("DefaultGroup")
+// {
 
-}
+// }
 
-MqConsumer::MqConsumer(const std::string& group, const std::string& ip, const std::string& port)
-    :consumer(group)
-{
-    this->setNameServer(ip, port);
-}
+// MqConsumer::MqConsumer(const std::string& group)
+//     :consumer(group)
+// {
 
-void MqConsumer::setListenrt(MessageListener& listener)
-{
-    this->consumer.registerMessageListener(&listener);
-}
+// }
 
-void MqConsumer::setSubscribe(const std::string& topic, const std::string& tag)
-{
-    this->consumer.subscribe(topic, tag);
-}
+// MqConsumer::MqConsumer(const std::string& group, const std::string& ip, const std::string& port)
+//     :consumer(group)
+// {
+//     this->setNameServer(ip, port);
+// }
 
-void MqConsumer::setNameServer(const std::string &nameserver)
-{
-    this->consumer.setNamesrvAddr(nameserver);
-}
+// void MqConsumer::setListenrt(MessageListener& listener)
+// {
+//     this->consumer.registerMessageListener(&listener);
+// }
 
-void MqConsumer::setNameServer(const std::string &ip, const std::string &port)
-{
-    this->setNameServer(ip + ":" + port);
-}
+// void MqConsumer::setSubscribe(const std::string& topic, const std::string& tag)
+// {
+//     this->consumer.subscribe(topic, tag);
+// }
 
-void MqConsumer::shutdown()
-{
-    this->consumer.shutdown();
-}
+// void MqConsumer::setNameServer(const std::string &nameserver)
+// {
+//     this->consumer.setNamesrvAddr(nameserver);
+// }
 
-void MqConsumer::start()
-{
-    this->consumer.start();
-}
+// void MqConsumer::setNameServer(const std::string &ip, const std::string &port)
+// {
+//     this->setNameServer(ip + ":" + port);
+// }
+
+// void MqConsumer::shutdown()
+// {
+//     this->consumer.shutdown();
+// }
+
+// void MqConsumer::start()
+// {
+//     this->consumer.start();
+// }
 
