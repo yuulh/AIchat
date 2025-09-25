@@ -2,14 +2,19 @@
 #define CHATBP_H
 
 #include "BpBase.h"
-#include "HttpClient.h"
+#include "../client/HttpClient.h"
+#include "../client/MySqlClient.h"
+#include "../client/RedisClient.h"
 #include <wfrest/BluePrint.h>
 #include <wfrest/Json.h>
 #include <string>
 #include <vector>
+#include <memory>
 
 using std::string;
 using std::vector;
+using std::unique_ptr;
+using std::shared_ptr;
 using namespace wfrest;
 
 
@@ -18,7 +23,9 @@ using namespace wfrest;
 */
 class ChatBp : public BpBase{
     string key;  // api key
-    HttpClient httpClient;  // 用于和模型交互的http客户端
+    shared_ptr<HttpClient> httpClient;  // 用于和模型交互的http客户端
+    shared_ptr<RedisClient> redisClient;
+    shared_ptr<MySqlClient> mysqlClient;
 public:
     ChatBp();
     ChatBp(const string &key);

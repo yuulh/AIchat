@@ -1,9 +1,29 @@
-#include <chatBp.h>
-#include <Log.h>
-#include <Configuration.h>
+#include "chatBp.h"
+#include "../Log.h"
+#include "../Configuration.h"
+#include <wfrest/HttpServer.h>
 
 void ChatBp::setBP()
 {
+    // 获取角色列表
+    // /assistant/list?tag=all&page=1&page_size=10
+    bp.GET("/assistant/list", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp){
+        // const std::map<std::string, std::string>& query_list = req->query_list();
+        const string &type = req->query("tag");
+        const string &page = req->query("page");
+        const string &page_size = req->query("page_size");
+        if(type.empty() || page.empty() || page_size.empty())
+        {
+            resp->set_status(HttpStatusBadRequest);
+            return;
+        }
+
+        if(redisClient){
+            redisClient->execute(resp, "GET", "assistant:" + type);
+        }
+    });
+
+    // 与模型聊天
     bp.POST("/chat", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp)
     {
         /*
