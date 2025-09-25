@@ -10,6 +10,7 @@ using namespace nlohmann;
 using std::string;
 using std::vector;
 
+
 class HttpClient{
 public:
     string url;
@@ -17,9 +18,9 @@ public:
     int redirect_max;
     int retry_max;
 
-    HttpClient(const string& url);
-    void GET(const vector<std::pair<string, string>>& headers, http_callback_t callback);
-    void POST(const vector<std::pair<string, string>>& headers, const json& body, http_callback_t callback);
+    HttpClient(const string& url): url(url), redirect_max(3), retry_max(3) {}
+    // void GET(const vector<std::pair<string, string>>& headers, http_callback_t callback);
+    // void POST(const vector<std::pair<string, string>>& headers, const json& body, http_callback_t callback);
 };
 
 #endif

@@ -43,7 +43,11 @@ public:
     int DEL(const string &key);
     int EXISTS(const string &key);
 
+    int HGET(const string &key, const string &field);
+    int HSET(const string &key, const string &field, const string &value);
+
     // 获取查询结果，resp传入this->redis_resp
+    // 结果为纯string的数组
     void getResp(const protocol::RedisValue &resp, vector<string> &ret);
 };
 

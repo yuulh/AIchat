@@ -53,6 +53,11 @@ public:
     vector<vector<string>> query(const string &sql);
     string getUrl() const;
 
+    inline void setDB(const string &database)
+    {
+        this->database = database;
+    }
+
 private:
 };
 

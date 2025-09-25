@@ -1,5 +1,6 @@
 #include "Log.h"
 #include "Configuration.h"
+#include "bluePrint/BluePrint.h"
 #include <log4cpp/PropertyConfigurator.hh>
 #include <cstring>
 #include <wfrest/HttpServer.h>
@@ -7,7 +8,7 @@
 
 using namespace wfrest;
 
-string configPath = "/usr/AIchat/server/config/config.conf";
+// string configPath = "/usr/AIchat/server/config/config.conf";
 
 int main()
 {
@@ -15,7 +16,20 @@ int main()
     
     HttpServer svr;
 
-    
+    ChatBp chatBp("123");
+    chatBp.setBP();
+    svr.register_blueprint(chatBp.getBP(), "/api");
+
+
+    if (svr.start(atoi(CONFIG["PORT"].c_str())) == 0){
+        fprintf(stderr, "start server");
+        LOG_INFO("Server started");
+        getchar();
+        svr.stop();
+    } else {
+        fprintf(stderr, "Cannot start server");
+        exit(1);
+    }
 
     return 0;
 }

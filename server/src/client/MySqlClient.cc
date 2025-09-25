@@ -10,17 +10,32 @@ string MySqlClient::getUrl() const
 void MySqlClient::mysql_callback(WFMySQLTask* task)
 {
     LOG_DEBUG("MySQL任务开始");
+    
+    class mysql_task_end {
+        public:
+        MySqlClient *client;
+        mysql_task_end(MySqlClient *client):client(client){}
+        ~mysql_task_end()
+        {
+            LOG_DEBUG("MySQL任务结束，唤醒条件变量");
+            std::lock_guard<std::mutex> lock(client->_mutex);
+            client->task_finished_ = true;
+            client->_cv.notify_one();
+        }
+    };
+    
     if(!task->user_data){
         LOG_ERROR("this指针为空!");
         return;
     }
     MySqlClient *client = static_cast<MySqlClient *>(task->user_data);  // this指针
+    mysql_task_end task_end(client);
 
     client->mysql_resp.clear();
 
     // 判断任务状态
     if (task->get_state() != WFT_STATE_SUCCESS) {
-        sprintf(logBuf, "task error: %d", task->get_error());
+        sprintf(logBuf, "task error: %d  %s", task->get_error(), task->get_resp()->get_error_msg().c_str());
         LOG_ERROR(logBuf);
         return;
     }
@@ -60,8 +75,8 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
             fields = cursor.fetch_fields();
             
             
-            setResp(client->mysql_resp, "db_name", fields[0]->get_db());
-            setResp(client->mysql_resp, "table_name", fields[0]->get_table());
+            // setResp(client->mysql_resp, "db_name", fields[0]->get_db());
+            // setResp(client->mysql_resp, "table_name", fields[0]->get_table());
             
             sprintf(logBuf, "数据库:[%s] 表:[%s]",
                 fields[0]->get_db().c_str(), fields[0]->get_table().c_str());
@@ -70,6 +85,7 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
             // 解析field结果
             string key, val;
             while (cursor.fetch_row(arr)) {
+                Json row;
                 for (size_t i = 0; i < arr.size(); i++) {
                     key = fields[i]->get_name();
                     
@@ -104,8 +120,9 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
                         val = arr[i].as_binary_string();
                     }
                     
-                    setResp(client->mysql_resp, key, val);
+                    setResp(row, key, val);
                 }
+                client->mysql_resp.push_back(row);
             }
         
         // 写操作结果集
@@ -122,11 +139,6 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
         }
 
     } while (cursor.next_result_set());
-
-    LOG_DEBUG("MySQL任务结束，唤醒条件变量");
-    std::lock_guard<std::mutex> lock(client->_mutex);
-	client->task_finished_ = true;
-	client->_cv.notify_one();
 }
 
 void MySqlClient::execute(const string& sql)
@@ -144,7 +156,9 @@ void MySqlClient::execute(const string& sql)
 void MySqlClient::wait()
 {
     std::unique_lock<std::mutex> lock(_mutex);
-    _cv.wait(lock, [this] { return task_finished_; });
+    // 最多阻塞1秒
+    _cv.wait_for(lock, std::chrono::seconds(1), [this] { return task_finished_; });
+    // _cv.wait_for(lock, [this] { return task_finished_; });
 }
 
 Json &MySqlClient::getResp()

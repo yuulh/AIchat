@@ -9,7 +9,11 @@ class BpBase {
 protected:
     wfrest::BluePrint bp;
 public:
-    virtual void setBP();  // 注册蓝图路由规则
+    virtual void setBP() = 0;  // 注册蓝图路由规则
+    virtual ~BpBase() = default;
+    inline wfrest::BluePrint &getBP() {
+        return bp;
+    }
     /* void SET(const std::string &path,
              std::function<void(const wfrest::HttpReq *req, wfrest::HttpResp *resp)> callback)
     {

@@ -30,6 +30,8 @@ public:
     ChatBp();
     ChatBp(const string &key);
 
+    // TODO: 移动、复制控制
+
     void setContext(void *context);
 
     int sendMessage(const string &message);

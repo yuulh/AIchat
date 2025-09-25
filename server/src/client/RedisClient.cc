@@ -67,6 +67,7 @@ void RedisClient::redis_callback(WFRedisTask* task)
 					strcat(logBuf, " ");
 				}
 				LOG_DEBUG(logBuf);
+                LOG_DEBUG(redisResp.string_view());
 			}
 			break;
 		}
@@ -181,4 +182,14 @@ int RedisClient::DEL(const string& key)
 int RedisClient::EXISTS(const string& key)
 {
     return execute("EXISTS", { key });
+}
+
+int RedisClient::HGET(const string& key, const string& field)
+{
+    return execute("HGET", { key, field });
+}
+
+int RedisClient::HSET(const string& key, const string& field, const string& value)
+{
+    return execute("HSET", { key, field, value });
 }

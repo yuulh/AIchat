@@ -28,6 +28,6 @@ int main()
      << __LINE__ << " " << msg)
 
 
-extern char logBuf[1024];  // 用于格式化日志，实体定义在Configuration.cc中
+extern char logBuf[4096];  // 用于格式化日志，实体定义在Configuration.cc中
 
 #endif

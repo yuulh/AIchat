@@ -1,6 +1,7 @@
 # customize
 log/
 .vscode/
+build/
 
 # Prerequisites
 *.d

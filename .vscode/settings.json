@@ -73,5 +73,6 @@
         "valarray": "cpp",
         "variant": "cpp",
         "future": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/usr/AIchat/server/src"
 }
