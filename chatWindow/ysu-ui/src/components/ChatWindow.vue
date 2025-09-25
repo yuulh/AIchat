@@ -1,5 +1,5 @@
 <template>
-  <div class="app-layout">
+  <div class="app-layout" id="app-layout">
     <div class="sidebar">
       <div class="logo-section">
         <img src="../assets/哈利波特.jpg" id="logo-img" width="160" height="160" class="logo-img" />
@@ -13,8 +13,8 @@
       <!-- 切换角色对话框 -->
       <el-dialog v-model="dialogVisible" title="请选择您想要对话的角色" :before-close="handleClose" max-width="640px">
         <div class="selectUsers">
-          <div v-for="(user, index) in users" :key="index" :id="user.name"
-          class="select-user" @click="changeUser(user.img, user.name)">
+          <div v-for="(user, index) in users" :key="index" :id="user.name" class="select-user"
+            @click="changeUser(user.img, user.name, user.background)">
             <img :src="user.img" class="select-img" />
             <a style="font-size:20px">{{ user.name }}</a>
           </div>
@@ -27,6 +27,10 @@
       <el-button class="new-chat-button" @click="newChat">
         <i class="fa-solid fa-plus"></i>
         &nbsp;新会话
+      </el-button>
+      <el-button class="new-chat-button" @click="getUsers">
+        <i class="fa-solid fa-plus"></i>
+        &nbsp;获取角色信息
       </el-button>
     </div>
     <div class="main-content">
@@ -70,8 +74,8 @@ const uuid = ref()
 const inputMessage = ref('')
 const messages = ref([])
 const dialogVisible = ref(false);
-const users = ref([{ img: "src/assets/哈利波特.jpg", name: "哈利波特" },
-{ img: "src/assets/苏格拉底.jpg", name: "苏格拉底" }
+const users = ref([{ img: "src/assets/哈利波特.jpg", name: "哈利波特", background: "src/assets/魔法学院.jpg" },
+{ img: "src/assets/苏格拉底.jpg", name: "苏格拉底", background: "src/assets/苏格拉底学院.jpg" }
 ])
 
 onMounted(() => {
@@ -81,12 +85,27 @@ onMounted(() => {
   hello()
 })
 
-const changeUser = (img,name) => {
-  const mainImg=document.getElementById("logo-img");
-  const mainName=document.getElementById("logo-text");
-  mainImg.src=img;
-  mainName.innerHTML=name;
-  dialogVisible.value=false;
+const changeUser = (img, name, background) => {
+  const mainImg = document.getElementById("logo-img");
+  const mainName = document.getElementById("logo-text");
+  const backgroundimg = document.getElementById("app-layout");
+  mainImg.src = img;
+  mainName.innerHTML = name;
+  backgroundimg.style.backgroundImage = "url(" + background + ")";
+  dialogVisible.value = false;
+}
+
+const getUsers = () => {
+  axios.get('/api/assistant/list', {
+    params: {
+      tag: "all",
+      page: "1",
+      page_size: "10"
+    }
+  }
+  ).then((res)=>{
+    console.log(res.data);
+  });
 }
 
 const scrollToBottom = () => {
@@ -134,7 +153,7 @@ const sendRequest = (message) => {
   axios
     .post(
       '/api/ysu/chat',
-      { memoryId: uuid.value, message },
+      { assistant_id: "1", conversation_id: uuid.value, messages: message },
       {
         responseType: 'stream', // 必须为合法值 "text"
         onDownloadProgress: (e) => {
@@ -157,8 +176,6 @@ const sendRequest = (message) => {
       messages.value.at(-1).isTyping = false
       isSending.value = false
     })
-
-
 }
 
 // 初始化 UUID
@@ -202,12 +219,16 @@ const newChat = () => {
 .app-layout {
   display: flex;
   height: 100vh;
+  background: #f9f9f9;
+  color: #333;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .sidebar {
-  width: 200px;
-  background-color: #f4f4f9;
-  padding: 20px;
+  width: 220px;
+  background: #ffffff;
+  border-right: 1px solid #eaeaea;
+  padding: 20px 15px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -217,90 +238,141 @@ const newChat = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-bottom: 30px;
 }
 
 .logo-img {
-  border-radius: 50%;
+  border-radius: 12px;
   object-fit: cover;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
 
 .logo-text {
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 600;
   margin-top: 10px;
+  color: #444;
 }
 
 .new-chat-button {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #f5f5f5;
+  color: #333;
+  border: none;
+  transition: all 0.2s;
+}
+.new-chat-button:hover {
+  background: #eaeaea;
 }
 
+/* 聊天主界面 */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f9f9f9;
+  padding: 0;
+}
+
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 20px;
+}
+
+.message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 消息气泡 */
+.message {
+  max-width: 75%;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  line-height: 1.5;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-size: 15px;
+}
+
+.user-message {
+  align-self: flex-end;
+  background: #d1f1d6;
+  border-bottom-right-radius: 4px;
+}
+
+.bot-message {
+  align-self: flex-start;
+  background: #fff;
+  border-bottom-left-radius: 4px;
+}
+
+.message-icon {
+  display: none; /* 去掉图标，保持简洁 */
+}
+
+/* 输入框区域 */
+.input-container {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid #eaeaea;
+  background: #fff;
+}
+
+.input-container .el-input {
+  flex: 1;
+}
+
+.input-container .el-input__inner {
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  padding: 10px 14px;
+}
+
+.input-container .el-button {
+  margin-left: 10px;
+  border-radius: 8px;
+  padding: 10px 18px;
+}
+
+/* 角色选择对话框 */
 .selectUsers {
   display: flex;
-  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: center;
 }
 
 .select-user {
   display: flex;
   flex-direction: column;
   align-items: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 12px;
+  padding: 10px;
+}
+.select-user:hover {
+  background: #f5f5f5;
 }
 
 .select-img {
-  width: 160px;
-  height: 160px;
+  width: 100px;
+  height: 100px;
+  border-radius: 12px;
   object-fit: cover;
+  margin-bottom: 8px;
 }
 
-.main-content {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-}
-
-.chat-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.message-list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  background-color: #fff;
-  margin-bottom: 10px;
-  display: flex;
-  flex-direction: column;
-}
-
-.message {
-  margin-bottom: 10px;
-  padding: 10px;
-  border-radius: 4px;
-  display: flex;
-  /* align-items: center; */
-}
-
-.user-message {
-  max-width: 70%;
-  background-color: #e1f5fe;
-  align-self: flex-end;
-  flex-direction: row-reverse;
-}
-
-.bot-message {
-  max-width: 100%;
-  background-color: #f1f8e9;
-  align-self: flex-start;
-}
-
-.message-icon {
-  margin: 0 10px;
-  font-size: 1.2em;
-}
 
 .loading-dots {
   padding-left: 5px;
@@ -344,80 +416,5 @@ const newChat = () => {
 }
 
 /* 媒体查询，当设备宽度小于等于 768px 时应用以下样式 */
-@media (max-width: 768px) {
-  .main-content {
-    padding: 10px 0 10px 0;
-  }
 
-  .app-layout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    /* display: none; */
-    width: 100%;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-  }
-
-  .logo-section {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .logo-text {
-    font-size: 20px;
-  }
-
-  .logo-section img {
-    width: 40px;
-    height: 40px;
-  }
-
-  .new-chat-button {
-    margin-right: 30px;
-    width: auto;
-    margin-top: 5px;
-  }
-}
-
-/* 媒体查询，当设备宽度大于 768px 时应用原来的样式 */
-@media (min-width: 769px) {
-  .main-content {
-    padding: 0 0 10px 10px;
-  }
-
-  .app-layout {
-    display: flex;
-    height: 100vh;
-  }
-
-  .sidebar {
-    width: 200px;
-    background-color: #f4f4f9;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .logo-section {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .logo-text {
-    font-size: 18px;
-    font-weight: bold;
-    margin-top: 10px;
-  }
-
-  .new-chat-button {
-    width: 100%;
-    margin-top: 20px;
-  }
-}
 </style>
