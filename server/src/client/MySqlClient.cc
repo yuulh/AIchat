@@ -11,25 +11,11 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
 {
     LOG_DEBUG("MySQL任务开始");
     
-    class mysql_task_end {
-        public:
-        MySqlClient *client;
-        mysql_task_end(MySqlClient *client):client(client){}
-        ~mysql_task_end()
-        {
-            LOG_DEBUG("MySQL任务结束，唤醒条件变量");
-            std::lock_guard<std::mutex> lock(client->_mutex);
-            client->task_finished_ = true;
-            client->_cv.notify_one();
-        }
-    };
-    
     if(!task->user_data){
         LOG_ERROR("this指针为空!");
         return;
     }
     MySqlClient *client = static_cast<MySqlClient *>(task->user_data);  // this指针
-    mysql_task_end task_end(client);
 
     client->mysql_resp.clear();
 
@@ -140,11 +126,14 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
 
     } while (cursor.next_result_set());
 
+    series_of(task)->set_context(&client->mysql_resp);
+    task->user_data = &client->mysql_resp;
+
     sprintf(logBuf, "%s", client->mysql_resp.dump().c_str());
     LOG_DEBUG_BUF;
 }
 
-void MySqlClient::execute(const string& sql)
+void MySqlClient::execute(const string& sql, const mysql_query_callback &callback)
 {
     sprintf(logBuf, "MySQL url: %s send command: \"%s\"", this->getUrl().c_str(), sql.c_str());
     LOG_DEBUG_BUF;
@@ -153,7 +142,12 @@ void MySqlClient::execute(const string& sql)
     task->user_data = this;
     task->get_req()->set_query(sql);
 
-    task->start();
+    auto *series_task = Workflow::create_series_work(this->task, nullptr);
+    auto *get_res_task = WFTaskFactory::create_go_task("getRES", callback, this->task);
+    if(callback)
+        series_task->push_back(get_res_task);
+
+    series_task->start();
 }
 
 void MySqlClient::wait()
@@ -169,11 +163,11 @@ Json &MySqlClient::getResp()
     return mysql_resp;
 }
 
-Json &MySqlClient::syncGetResp()
+/* Json &MySqlClient::syncGetResp()
 {
-    WFTaskFactory::create_go_task()
-    return mysql_resp;
-}
+    /* WFTaskFactory::create_go_task()
+    return mysql_resp; 
+}*/
 
 MySqlClient::MySqlClient(const string& host, const string& port, const string& user,
 const string& password, const string& database, const int& retry_max)

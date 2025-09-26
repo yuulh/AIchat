@@ -6,6 +6,7 @@
 #include "../client/RedisClient.h"
 #include "../client/HttpClient.h"
 #include <wfrest/HttpServer.h>
+#include <workflow/WFFacilities.h>
 
 using namespace wfrest;
 
@@ -43,54 +44,64 @@ void UserBp::setBP()
             return;
         }
 
+        WFFacilities::WaitGroup wait_group(1);
+
         mysqlClient->setDB("AIchat");
         const string sql = "select * from user where user = '" + user + "' and pwd = '" + pwd + "'";
-        mysqlClient->execute(sql);
+        mysqlClient->execute(sql, [&](WFMySQLTask *task){
+            LOG_DEBUG("mysql查询结束，处理开始");
 
-        Json &res = mysqlClient->syncGetResp();
+            Json &res = *static_cast<Json *>(task->user_data);
 
-        sprintf(logBuf, "mysql_resp %ld: %s", res.size(), res.dump().c_str());
-        LOG_DEBUG_BUF;
-
-        if (res.is_null()) {
-            LOG_ERROR("用户名或密码错误");
-            resp->set_status(HttpStatusNotAcceptable);
-            resp->String("用户名或密码错误");
-            return;
-        }
-        
-        string status = res[0]["status"];
-
-        if(status == "OK"){
-            LOG_INFO("当前用户已登录");
-            resp->String("当前用户已登录");
-        }else if(status == "OFF"){
-            string uuid = generate_uuid();
-
-            sprintf(logBuf, "登录成功: uuid: %s", uuid.c_str());
+            sprintf(logBuf, "mysql_resp %ld: %s", res.size(), res.dump().c_str());
             LOG_DEBUG_BUF;
+            
+            if (!res.size() || res.is_null()) {
+                LOG_ERROR("用户名或密码错误");
+                resp->set_status(HttpStatusNotAcceptable);
+                resp->String("用户名或密码错误");
+                wait_group.done();
+                return;
+            }
 
-            // TODO: 登录成功后状态置为OK
+            
+            string status = res[0]["status"];
+    
+            if(status == "OK"){
+                LOG_INFO("当前用户已登录");
+                resp->String("当前用户已登录");
+            }else if(status == "OFF"){
+                string uuid = generate_uuid();
+    
+                sprintf(logBuf, "登录成功: uuid: %s", uuid.c_str());
+                LOG_DEBUG_BUF;
+    
+                // TODO: 登录成功后状态置为OK
+    
+                redisClient->SET(uuid, user, nullptr);
+                redisClient->EXPIRE(uuid, REDIS_TTL_1_DAY, nullptr);
+    
+                HttpCookie cookie;
+                cookie.set_key("u")
+                        .set_value(uuid)
+                        .set_http_only(true);
+    
+                sprintf(logBuf, "set cookie: u = %s", uuid.c_str());
+                LOG_DEBUG_BUF;
+    
+                resp->add_cookie(std::move(cookie));
+                resp->String("登录成功");
+            }else {
+                sprintf(logBuf, "登录失败，用户状态: %s", status.c_str());
+                LOG_ERROR(logBuf);
+                resp->set_status(HttpStatusNotAcceptable);
+                resp->String("用户状态异常");
+            }
 
-            redisClient->SET(uuid, user);
-            redisClient->EXPIRE(uuid, REDIS_TTL_1_DAY);
+            wait_group.done();
+        });
 
-            HttpCookie cookie;
-            cookie.set_key("u")
-                    .set_value(uuid)
-                    .set_http_only(true);
-
-            sprintf(logBuf, "set cookie: u = %s", uuid.c_str());
-            LOG_DEBUG_BUF;
-
-            resp->add_cookie(std::move(cookie));
-            resp->String("登录成功");
-        }else {
-            sprintf(logBuf, "登录失败，用户状态: %s", status.c_str());
-            LOG_ERROR(logBuf);
-            resp->set_status(HttpStatusNotAcceptable);
-            resp->String("用户状态异常");
-        }
+        wait_group.wait();
 
         
     });

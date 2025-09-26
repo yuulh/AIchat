@@ -3,6 +3,8 @@
 #include "../Configuration.h"
 #include "../utils.h"
 #include <wfrest/HttpServer.h>
+#include <workflow/WFFacilities.h>
+
 
 
 void ChatBp::setBP()
@@ -27,38 +29,47 @@ void ChatBp::setBP()
             return "assistant_" + tag + "_page_" + std::to_string(page) + "&" + std::to_string(page_size);
         };
 
+        WFFacilities::WaitGroup wait_group(1);
         if(redisClient){
+
             string key = getKeyName(tag, page, page_size);
-            redisClient->GET(key);
-            redisClient->wait();
 
-            vector<string> redis_ret;
-            redisClient->getResp(redisClient->redis_resp, redis_ret);
-            if(redis_ret.empty()) {
-                // 去数据库查询
-                mysqlClient->setDB("AIchat");
-                mysqlClient->execute("SELECT * FROM assistant_" + tag + " LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size));
-                
-                auto &ret = mysqlClient->syncGetResp();
+            redisClient->GET(key, [&](WFRedisTask *task){
+                protocol::RedisValue &redis_resp = *static_cast<protocol::RedisValue *>(series_of(task)->get_context());
 
-                if(!ret){
-                    LOG_ERROR("mysql query is null");
+                vector<string> redis_ret;
+                redisClient->parseResp(redis_resp, redis_ret);
+
+                if(redis_ret.empty()) {
+                    // 去数据库查询
+                    mysqlClient->setDB("AIchat");
+                    mysqlClient->execute("SELECT * FROM assistant_" + tag + " LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size), [&](WFMySQLTask *task){
+                        Json ret = *static_cast<Json *>(series_of(task)->get_context());
+
+                        if(ret.is_null()){
+                            LOG_ERROR("mysql query is null");
+                        }
+
+                        redisClient->SET(key, ret.dump(), nullptr);
+                        resp->Json(ret);
+                        wait_group.done();
+                    });
+                    
+                }else{
+                    // 缓存命中
+                    resp->Json(redis_ret[0]);
+                    wait_group.done();
                 }
-
-                redisClient->SET(key, ret.dump());
-
-                // resp->Json(ret);
-                resp->String(ret.dump());
-            }else{
-                // 缓存命中
-                resp->Json(redis_ret[0]);
-            }
+            });
         }else{
             LOG_ERROR("redisClient is null");
             resp->String("服务器查询失败");
+            wait_group.done();
         }
+        wait_group.wait();
+        
     });
-
+        
     // 获取会话列表
     // 请求头需要包含Cookie
     // /conversation/list?page=1&page_size=10
@@ -93,17 +104,20 @@ void ChatBp::setBP()
             resp->set_status(HttpStatusBadRequest);
             return;
         }else{
+            WFFacilities::WaitGroup wait_group(1);
             // 数据库查询会话列表
             mysqlClient->setDB("AIchat");
             mysqlClient->execute("SELECT conversation_id, title FROM conversation WHERE user_id = '" + user_id +
-                                 "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size));
+                                 "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size), [&](WFMySQLTask *task){
+                Json ret = *static_cast<Json *>(series_of(task)->get_context());
+                if(ret.is_null()){
+                    LOG_ERROR("mysql query is null");
+                }
+                resp->Json(ret);
+                wait_group.done();
+            });
 
-            auto &ret = mysqlClient->syncGetResp();
-
-            if(!ret){
-                LOG_ERROR("mysql query is null");
-            }
-            resp->Json(ret);
+            wait_group.wait();
         }
         
     });

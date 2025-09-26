@@ -26,7 +26,7 @@ int main()
 
 
     if (svr.start(atoi(CONFIG["PORT"].c_str())) == 0){
-        fprintf(stderr, "服务启动在: %s", CONFIG["PORT"].c_str());
+        fprintf(stderr, "服务启动在: %s\n", CONFIG["PORT"].c_str());
         LOG_INFO("Server started");
         getchar();
         svr.stop();

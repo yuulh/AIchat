@@ -5,9 +5,11 @@
 #include "wfrest/Json.h"
 #include <workflow/Workflow.h>
 #include <iostream>
+#include <functional>
 
 using namespace std;
 using namespace wfrest;
+using f = function<void(int)>;
 
 int main()
 {
@@ -16,6 +18,7 @@ int main()
 		protocol::RedisResponse* resp = task->get_resp();
 		int state = task->get_state();
 		int error = task->get_error();
+		protocol::RedisValue &redisResp = *static_cast<protocol::RedisValue *>(task->user_data);
 
 		char logBuf[1024]{0};
 		cerr << "start\n";
@@ -34,7 +37,6 @@ int main()
 				cerr << "task error\n";
 				break;
 			case WFT_STATE_SUCCESS:{
-				protocol::RedisValue &redisResp = *static_cast<protocol::RedisValue *>(task->user_data);
 				resp->get_result(redisResp);
 				if (redisResp.is_error()) {
 					cerr << "redis error\n";
@@ -66,18 +68,24 @@ int main()
 			return;
 		}
 
+		series_of(task)->set_context(&redisResp);
+
 	});
 
 	protocol::RedisValue redisResp;
 	task0->user_data = &redisResp;
 
+
+
 	task0->get_req()->set_request("GET", {"haha"});
 
-	auto *gotask = WFTaskFactory::create_go_task("aaa", [task0](){
-		protocol::RedisValue *redisResp = (protocol::RedisValue *)task0->user_data;
+	auto call = [](WFRedisTask *task){
+		protocol::RedisValue *redisResp = (protocol::RedisValue *)series_of(task)->get_context();
 		cerr << "go task\n";
 		cerr << redisResp->string_value() << "\n";
-	});
+	};
+
+	auto *gotask = WFTaskFactory::create_go_task("aaa", call, task0);
 
 	SeriesWork *task = Workflow::create_series_work(task0, NULL);
 
