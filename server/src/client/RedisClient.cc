@@ -50,11 +50,13 @@ void RedisClient::redis_callback(WFRedisTask* task)
 			protocol::RedisValue &redisResp = static_cast<RedisClient *>(task->user_data)->redis_resp;
 			resp->get_result(redisResp);
 			if (redisResp.is_error()) {
+                series_of(task)->set_context(nullptr);
 				sprintf(logBuf, "%*s\n", (int)redisResp.string_view()->size(),
-					redisResp.string_view()->c_str());
+                redisResp.string_view()->c_str());
 				LOG_ERROR(logBuf);
 				state = WFT_STATE_TASK_ERROR;
 			} else {
+                series_of(task)->set_context(&redisResp);
 				std::string cmd;
 				req->get_command(cmd);
 				vector<string> params;
@@ -66,8 +68,6 @@ void RedisClient::redis_callback(WFRedisTask* task)
 					strncat(logBuf, param.c_str(), param.size());
 					strcat(logBuf, " ");
 				}
-				LOG_DEBUG(logBuf);
-                LOG_DEBUG(redisResp.string_view());
 			}
 			break;
 		}
@@ -82,10 +82,10 @@ void RedisClient::redis_callback(WFRedisTask* task)
         return;
     }
 
-	RedisClient *client = static_cast<RedisClient *>(task->user_data);
+/* 	RedisClient *client = static_cast<RedisClient *>(task->user_data);
 	std::lock_guard<std::mutex> lock(client->_mutex);
 	client->task_finished_ = true;
-	client->_cv.notify_one();
+	client->_cv.notify_one(); */
 
 
     /* std::string cmd;
@@ -125,7 +125,7 @@ void RedisClient::wait()
     _cv.wait(lock, [this] { return task_finished_; });
 }
 
-void RedisClient::getResp(const protocol::RedisValue& resp, vector<string>& ret)
+void RedisClient::parseResp(const protocol::RedisValue& resp, vector<string>& ret)
 {
     int val_type = resp.get_type();
     switch (val_type) {
@@ -141,7 +141,7 @@ void RedisClient::getResp(const protocol::RedisValue& resp, vector<string>& ret)
         int size = resp.arr_size();
         for (int i = 0; i < size; i++) {
             auto& next = resp.arr_at(i);
-            getResp(next, ret);
+            parseResp(next, ret);
         }
 
         break;
@@ -153,43 +153,57 @@ string RedisClient::getUrl()
     return "redis://" + host + ":" + port + "/" + database;
 }
 
-int RedisClient::execute(const string& command, const vector<string>& args)
+int RedisClient::execute(const string& command, const vector<string>& args, const redis_query_callback &callback)
 {
 	sprintf(logBuf, "Redis url: %s send command: %s %s", this->getUrl().c_str(), command.c_str(), args[0].c_str());
 	LOG_DEBUG_BUF;
+    
     this->task = WFTaskFactory::create_redis_task(this->getUrl(), retry_max, this->redis_callback);
     this->task->get_req()->set_request(command, args);
     this->task->user_data = this;
-    this->task->start();
+
+    auto *series_task = Workflow::create_series_work(this->task, NULL);
+
+    if(callback){
+        auto *get_res_task = WFTaskFactory::create_go_task("getRES", callback, this->task);   
+        series_task->push_back(get_res_task);
+    }
+
+    series_task->start();
     return 0;
 }
 
-int RedisClient::SET(const string& key, const string& value)
+int RedisClient::SET(const string& key, const string& value, const redis_query_callback &callback)
 {
-    return execute("SET", { key, value });
+    return execute("SET", { key, value }, callback);
 }
 
-int RedisClient::GET(const string& key)
+int RedisClient::GET(const string& key, const redis_query_callback &callback)
 {
-    return execute("GET", { key });
+    return execute("GET", { key }, callback);
 }
 
-int RedisClient::DEL(const string& key)
+int RedisClient::DEL(const string& key, const redis_query_callback &callback)
 {
-    return execute("DEL", { key });
+    return execute("DEL", { key }, callback);
 }
 
-int RedisClient::EXISTS(const string& key)
+int RedisClient::EXISTS(const string& key, const redis_query_callback &callback)
 {
-    return execute("EXISTS", { key });
+    return execute("EXISTS", { key }, callback);
 }
 
-int RedisClient::HGET(const string& key, const string& field)
+int RedisClient::HGET(const string& key, const string& field, const redis_query_callback &callback)
 {
-    return execute("HGET", { key, field });
+    return execute("HGET", { key, field }, callback);
 }
 
-int RedisClient::HSET(const string& key, const string& field, const string& value)
+int RedisClient::HSET(const string& key, const string& field, const string& value, const redis_query_callback &callback)
 {
-    return execute("HSET", { key, field, value });
+    return execute("HSET", { key, field, value }, callback);
+}
+
+int RedisClient::EXPIRE(const string& key, int seconds, const redis_query_callback &callback)
+{
+    return execute("EXPIRE", { key, std::to_string(seconds) }, callback);
 }

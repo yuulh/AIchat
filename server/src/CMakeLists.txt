@@ -9,8 +9,8 @@ add_executable(AIchat ${SRC_LIST})
 
 #链接库  -lpthread -llog4cpp -lrocketmq -lwfrest -lworkflow -lz -ldl -lrt
 target_link_libraries(AIchat
-    log4cpp pthread rocketmq wfrest workflow z dl rt
+    log4cpp pthread rocketmq wfrest workflow z dl rt uuid
 )
 
 # 编译选项
-add_compile_options(-std=c++11 -Wall -O2)
+add_compile_options(-std=c++17 -Wall -O2)

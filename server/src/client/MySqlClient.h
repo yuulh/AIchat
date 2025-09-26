@@ -15,6 +15,10 @@ using namespace protocol;
 using std::string;
 using std::vector;
 
+// TODO: 更优雅的实现
+// 从WFMySQLTask获取序列，从context中获取Json
+using mysql_query_callback = std::function<void(WFMySQLTask *)>;
+
 class MySqlClient {
     string host;
     string port;
@@ -49,8 +53,8 @@ public:
     Json &getResp();  // 获取结果json，当sql操作未完成时会发生错误
     Json &syncGetResp();  // 同步等待sql结束后获取结果
 
-    void execute(const string &sql);
-    vector<vector<string>> query(const string &sql);
+    void execute(const string &sql, const mysql_query_callback &callback);
+    // vector<vector<string>> query(const string &sql);
     string getUrl() const;
 
     inline void setDB(const string &database)

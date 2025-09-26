@@ -7,8 +7,19 @@
 #include <condition_variable>
 #include <workflow/WFTaskFactory.h>
 
+#define REDIS_TTL_1_MINUTE 60
+#define REDIS_TTL_1_HOUR 3600
+#define REDIS_TTL_1_DAY 86400
+#define REDIS_TTL_1_WEEK 604800
+#define REDIS_TTL_1_MONTH 2592000
+#define REDIS_TTL_LONG -1
+
 using std::string;
 using std::vector;
+
+// TODO: 更优雅的实现，参数为RedisResp &resp，外部调用直接使用该参数就是结果
+// 通过WFRedisTask获取序列，从context中获取protocol::RedisValue
+using redis_query_callback = std::function<void(WFRedisTask *)>;
 
 class RedisClient {
     string host;
@@ -33,22 +44,24 @@ public:
                 int retry_max);
     // ~RedisClient();
     
-    int execute(const string &command, const vector<string> &args);
+    int execute(const string& command, const vector<string>& args, const redis_query_callback &callback);
 
     void wait();
     string getUrl();
 
-    int SET(const string &key, const string &value);
-    int GET(const string &key);
-    int DEL(const string &key);
-    int EXISTS(const string &key);
+    int SET(const string &key, const string &value, const redis_query_callback &callback);
+    int GET(const string &key, const redis_query_callback &callback);
+    int DEL(const string &key, const redis_query_callback &callback);
+    int EXISTS(const string &key, const redis_query_callback &callback);
 
-    int HGET(const string &key, const string &field);
-    int HSET(const string &key, const string &field, const string &value);
+    int HGET(const string &key, const string &field, const redis_query_callback &callback);
+    int HSET(const string &key, const string &field, const string &value, const redis_query_callback &callback);
 
-    // 获取查询结果，resp传入this->redis_resp
+    int EXPIRE(const string &key, int seconds, const redis_query_callback &callback);
+
+    // 递归解析查询结果
     // 结果为纯string的数组
-    void getResp(const protocol::RedisValue &resp, vector<string> &ret);
+    void parseResp(const protocol::RedisValue &resp, vector<string> &ret);
 };
 
 #endif

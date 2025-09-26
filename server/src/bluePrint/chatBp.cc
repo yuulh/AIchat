@@ -1,13 +1,17 @@
 #include "chatBp.h"
 #include "../Log.h"
 #include "../Configuration.h"
+#include "../utils.h"
 #include <wfrest/HttpServer.h>
+#include <workflow/WFFacilities.h>
+
+
 
 void ChatBp::setBP()
 {
     // 获取角色列表
     // /assistant/list?tag=all&page=1&page_size=10
-    bp.GET("/assistant/list", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp){
+    bp.GET("/assistant/list", [this](const HttpReq *req, HttpResp *resp){
         sprintf(logBuf, "get req %s", req->get_request_uri());
         LOG_DEBUG_BUF;
 
@@ -25,40 +29,101 @@ void ChatBp::setBP()
             return "assistant_" + tag + "_page_" + std::to_string(page) + "&" + std::to_string(page_size);
         };
 
+        WFFacilities::WaitGroup wait_group(1);
         if(redisClient){
+
             string key = getKeyName(tag, page, page_size);
-            redisClient->GET(key);
-            redisClient->wait();
 
-            vector<string> redis_ret;
-            redisClient->getResp(redisClient->redis_resp, redis_ret);
-            if(redis_ret.empty()) {
-                // 去数据库查询
-                mysqlClient->setDB("AIchat");
-                mysqlClient->execute("SELECT * FROM assistant_" + tag + " LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size));
-                
-                auto &ret = mysqlClient->syncGetResp();
+            redisClient->GET(key, [&](WFRedisTask *task){
+                protocol::RedisValue &redis_resp = *static_cast<protocol::RedisValue *>(series_of(task)->get_context());
 
-                if(!ret){
-                    LOG_ERROR("mysql query is null");
+                vector<string> redis_ret;
+                redisClient->parseResp(redis_resp, redis_ret);
+
+                if(redis_ret.empty()) {
+                    // 去数据库查询
+                    mysqlClient->setDB("AIchat");
+                    mysqlClient->execute("SELECT * FROM assistant_" + tag + " LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size), [&](WFMySQLTask *task){
+                        Json ret = *static_cast<Json *>(series_of(task)->get_context());
+
+                        if(ret.is_null()){
+                            LOG_ERROR("mysql query is null");
+                        }
+
+                        redisClient->SET(key, ret.dump(), nullptr);
+                        resp->Json(ret);
+                        wait_group.done();
+                    });
+                    
+                }else{
+                    // 缓存命中
+                    resp->Json(redis_ret[0]);
+                    wait_group.done();
                 }
-
-                redisClient->SET(key, ret.dump());
-
-                // resp->Json(ret);
-                resp->String(ret.dump());
-            }else{
-                // 缓存命中
-                resp->Json(redis_ret[0]);
-            }
+            });
         }else{
             LOG_ERROR("redisClient is null");
             resp->String("服务器查询失败");
+            wait_group.done();
         }
+        wait_group.wait();
+        
+    });
+        
+    // 获取会话列表
+    // 请求头需要包含Cookie
+    // /conversation/list?page=1&page_size=10
+    /*
+    响应:
+    [{
+        "conversation_id": "string",
+        "title": "string",
+        "update_time": "string"
+    }]
+    */
+    bp.GET("/conversation/list", [this](const HttpReq *req, HttpResp *resp){
+        sprintf(logBuf, "get req %s", req->get_request_uri());
+        LOG_DEBUG_BUF;
+
+        // 获取cookie
+        const std::string &cookie_val = req->cookie("u");  // 用户id
+        if(cookie_val.empty()) {
+            resp->set_status(HttpStatusBadRequest);
+            return;
+        }
+
+        const int &page = req->query("page").empty() ? 1 : atoi(req->query("page").c_str());
+        const int &page_size = req->query("page_size").empty() ? 10 : atoi(req->query("page_size").c_str());
+        int offset = (page - 1) * page_size;
+
+        // 去redis查找用户id
+        const string user_id = Cookie2User_id(*redisClient, cookie_val);
+
+        // 不存在该cookie，登录失效
+        if(user_id.empty()) {
+            resp->set_status(HttpStatusBadRequest);
+            return;
+        }else{
+            WFFacilities::WaitGroup wait_group(1);
+            // 数据库查询会话列表
+            mysqlClient->setDB("AIchat");
+            mysqlClient->execute("SELECT conversation_id, title FROM conversation WHERE user_id = '" + user_id +
+                                 "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size), [&](WFMySQLTask *task){
+                Json ret = *static_cast<Json *>(series_of(task)->get_context());
+                if(ret.is_null()){
+                    LOG_ERROR("mysql query is null");
+                }
+                resp->Json(ret);
+                wait_group.done();
+            });
+
+            wait_group.wait();
+        }
+        
     });
 
     // 与模型聊天
-    bp.POST("/chat", [this](const wfrest::HttpReq *req, wfrest::HttpResp *resp)
+    bp.POST("/assistant/stream", [this](const HttpReq *req, HttpResp *resp)
     {
         /*
         用户发送一个消息，内容应该为：
@@ -87,8 +152,9 @@ void ChatBp::setBP()
 
         // 获取结果
         // 返回给用户
-
+        
     });
+
 }
 
 ChatBp::ChatBp()

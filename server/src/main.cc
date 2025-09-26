@@ -20,9 +20,13 @@ int main()
     chatBp.setBP();
     svr.register_blueprint(chatBp.getBP(), "/api");
 
+    UserBp userBp;
+    userBp.setBP();
+    svr.register_blueprint(userBp.getBP(), "/user");
+
 
     if (svr.start(atoi(CONFIG["PORT"].c_str())) == 0){
-        fprintf(stderr, "start server");
+        fprintf(stderr, "服务启动在: %s\n", CONFIG["PORT"].c_str());
         LOG_INFO("Server started");
         getchar();
         svr.stop();

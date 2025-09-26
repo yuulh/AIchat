@@ -1,5 +1,33 @@
 #include "utils.h"
-#include <cstring>
+#include <uuid/uuid.h>
+#include <workflow/WFFacilities.h>
+
+
+string Cookie2User_id(RedisClient &redis, const string &cookie)
+{
+    vector<string> redis_ret;
+    WFFacilities::WaitGroup wait_group(1);
+
+    redis.execute("GET", {cookie}, [&](WFRedisTask *task){
+        protocol::RedisValue &redis_resp = *static_cast<protocol::RedisValue *>(series_of(task)->get_context());
+        redis.parseResp(redis_resp, redis_ret);
+        wait_group.done();
+    });
+
+    wait_group.wait();
+    if(redis_ret.empty()) return "";
+    return redis_ret[0];
+}
+
+std::string generate_uuid() {
+    uuid_t uuid;
+    uuid_generate(uuid);
+
+    char uuid_str[37];
+    uuid_unparse(uuid, uuid_str);
+
+    return uuid_str;
+}
 
 /* files_t utils::readDir(const string &dir)
 {
