@@ -8,9 +8,11 @@ export default defineConfig({
     vue()
   ],
   server: {
+    host: '0.0.0.0', // 允许外部访问
+    port: 8090,
     proxy: {
       '^/(api|user)': {
-        target: 'http://47.109.39.124:8090',
+        target: 'http://106.52.24.166:8888',
         changeOrigin: true,
         //rewrite: (path) => path.replace(/^\/api/, ''), // 去掉 /api 前缀
       },

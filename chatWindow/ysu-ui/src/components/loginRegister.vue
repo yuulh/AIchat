@@ -61,7 +61,7 @@
 <script setup>
 import { ref } from 'vue'
 import md5 from 'crypto-js/md5'
-defineProps(['route']);
+const props=defineProps(['setRoute']);
 
 // 要求说明：
 // 1. 用户名只能包含字母、数字和“_”。
@@ -117,9 +117,9 @@ async function handleSubmit() {
   loading.value = true
   try {
     // 先对密码做字符 +1 处理
-    const shiftedPwd = shiftPassword(password.value)
+    //const shiftedPwd = shiftPassword(password.value)
     // 再做 MD5 加密
-    const hashed = md5(shiftedPwd).toString()
+    const hashed = md5(password.value).toString()
 
     const payload = {
       user: username.value,
@@ -139,8 +139,11 @@ async function handleSubmit() {
       throw new Error(text || `请求失败：${res.status}`)
     }
 
-    const data = await res.json()
+    const data = await res.text();
     message.value = { type: 'success', text: data.message || (mode.value === 'login' ? '登录成功' : '注册成功') }
+    if(mode.value==='login'){
+      props.setRoute('chat');
+    }
 
     // TODO: 登录成功后可执行跳转或保存 token
   } catch (err) {
@@ -163,6 +166,7 @@ async function handleSubmit() {
   background-size:cover;
   opacity: 1;
   padding: 24px;
+  margin: 0px;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
