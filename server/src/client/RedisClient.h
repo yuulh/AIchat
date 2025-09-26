@@ -7,6 +7,8 @@
 #include <condition_variable>
 #include <workflow/WFTaskFactory.h>
 
+#define GET_REDIS_RESP (*static_cast<protocol::RedisValue *>(task->user_data))
+
 #define REDIS_TTL_1_MINUTE 60
 #define REDIS_TTL_1_HOUR 3600
 #define REDIS_TTL_1_DAY 86400

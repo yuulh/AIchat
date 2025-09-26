@@ -56,18 +56,20 @@ void RedisClient::redis_callback(WFRedisTask* task)
 				LOG_ERROR(logBuf);
 				state = WFT_STATE_TASK_ERROR;
 			} else {
-                series_of(task)->set_context(&redisResp);
+                task->user_data = &redisResp;
+                // series_of(task)->set_context(&redisResp);
 				std::string cmd;
 				req->get_command(cmd);
 				vector<string> params;
 				req->get_params(params);
 				strcpy(logBuf, "执行成功: ");
-				strncat(logBuf, cmd.c_str(), cmd.size());
+				strcat(logBuf, cmd.c_str());
 				strcat(logBuf, " ");
 				for (auto& param : params) {
-					strncat(logBuf, param.c_str(), param.size());
+					strcat(logBuf, param.c_str());
 					strcat(logBuf, " ");
 				}
+                LOG_DEBUG_BUF;
 			}
 			break;
 		}
@@ -155,7 +157,11 @@ string RedisClient::getUrl()
 
 int RedisClient::execute(const string& command, const vector<string>& args, const redis_query_callback &callback)
 {
-	sprintf(logBuf, "Redis url: %s send command: %s %s", this->getUrl().c_str(), command.c_str(), args[0].c_str());
+	sprintf(logBuf, "Redis url: %s send command: %s", this->getUrl().c_str(), command.c_str());
+    for(auto &i : args){
+        strcat(logBuf, " ");
+        strcat(logBuf, i.c_str());
+    }
 	LOG_DEBUG_BUF;
     
     this->task = WFTaskFactory::create_redis_task(this->getUrl(), retry_max, this->redis_callback);

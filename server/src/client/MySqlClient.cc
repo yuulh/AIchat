@@ -126,7 +126,7 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
 
     } while (cursor.next_result_set());
 
-    series_of(task)->set_context(&client->mysql_resp);
+    // series_of(task)->set_context(&client->mysql_resp);
     task->user_data = &client->mysql_resp;
 
     sprintf(logBuf, "%s", client->mysql_resp.dump().c_str());

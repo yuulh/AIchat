@@ -2,6 +2,7 @@
 log/
 .vscode/
 build/
+test/
 
 # Prerequisites
 *.d
