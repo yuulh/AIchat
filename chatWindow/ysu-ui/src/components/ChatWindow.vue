@@ -2,9 +2,10 @@
   <div class="app-layout" id="app-layout">
     <div class="sidebar">
       <div class="logo-section">
-        <img src="http://47.109.39.124/public/4c377441f4c2012135c76614fea448a0.jpg" id="logo-img" width="160" height="160" class="logo-img" />
+        <img src="" id="logo-img" width="160"
+          height="160" class="logo-img" />
         <!-- alt="" -->
-        <span class="logo-text" id="logo-text">哈利波特</span>
+        <span class="logo-text" id="logo-text"></span>
       </div>
       <el-button class="new-chat-button" @click="dialogVisible = true">
         <i class="fa-solid fa-user"></i>
@@ -14,8 +15,8 @@
       <el-dialog v-model="dialogVisible" title="请选择您想要对话的角色" :before-close="handleClose" max-width="640px">
         <div class="selectUsers">
           <div v-for="(user, index) in users" :key="index" :id="user.name" class="select-user"
-            @click="changeUser(user.img, user.name, user.background)">
-            <img :src="user.avatar+'.jpg'" class="select-img" />
+            @click="changeUser(user.avatar, user.name, user.background)">
+            <img :src="user.avatar" class="select-img" />
             <a style="font-size:20px">{{ user.name }}</a>
           </div>
         </div>
@@ -29,8 +30,18 @@
         &nbsp;新会话
       </el-button>
     </div>
+
     <div class="main-content">
-      <div class="chat-container">
+      <!-- 顶部导航栏 -->
+      <div class="topbar">
+        <div class="title">欢迎来到 AI 虚拟角色聊天平台</div>
+        <div class="current-role">角色：{{ currentRole || '未选择角色' }}</div>
+        <div class="actions">
+          <el-button type="text" @click="handleLogout">退出</el-button>
+          <el-button type="text" @click="handleSettings">设置</el-button>
+        </div>
+      </div>
+      <div class="chat-container" id="chat-container">
         <div class="message-list" ref="messaggListRef">
           <div v-for="(message, index) in messages" :key="index" :class="message.isUser ? 'message user-message' : 'message bot-message'
             ">
@@ -63,14 +74,42 @@
 import { onMounted, ref, watch } from 'vue'
 import axios from 'axios'
 import { v4 as uuidv4 } from 'uuid'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
 
 const messaggListRef = ref()
 const isSending = ref(false)
 const uuid = ref()
 const inputMessage = ref('')
 const messages = ref([])
-const dialogVisible = ref(false);
+const dialogVisible = ref(true);
 const users = ref()
+const currentRole = ref('') // 这里可以根据用户选择更新
+const props=defineProps(['setRoute']);
+
+const handleLogout = () => {
+  ElMessageBox.confirm(
+    '是否退出登录？',
+    '提示',
+    {
+      confirmButtonText: '是',
+      cancelButtonText: '否',
+      type: 'warning',
+    }
+  )
+    .then(() => {
+      props.setRoute('login')
+      console.log("123")
+    })
+    .catch(() => {
+      
+    })
+}
+
+const handleSettings = () => {
+  console.log("打开设置")
+  // TODO: 打开设置对话框
+}
 
 onMounted(() => {
   initUUID()
@@ -83,10 +122,10 @@ onMounted(() => {
       page_size: "10"
     }
   }
-  ).then((res)=>{
-    users.value=res.data;
+  ).then((res) => {
+    users.value = res.data;
     console.log(users.value);
-    
+
   });
   hello()
 })
@@ -94,11 +133,15 @@ onMounted(() => {
 const changeUser = (img, name, background) => {
   const mainImg = document.getElementById("logo-img");
   const mainName = document.getElementById("logo-text");
-  const backgroundimg = document.getElementById("app-layout");
+  const backgroundimg = document.getElementById("chat-container");
   mainImg.src = img;
   mainName.innerHTML = name;
+  currentRole.value=name;
   backgroundimg.style.backgroundImage = "url(" + background + ")";
+  console.log(img);
   dialogVisible.value = false;
+  messages.value=[];
+  hello()
 }
 
 
@@ -213,19 +256,64 @@ const newChat = () => {
 .app-layout {
   display: flex;
   height: 100vh;
-  background: #f9f9f9;
+  background: linear-gradient(135deg, #e6f7ff, #d9f7f5);
   color: #333;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  /* background-image: url('src/assets/魔法学院.jpg'); */
+  background-size: cover;
 }
 
+
+/* 顶部导航栏 */
+.topbar {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: linear-gradient(90deg, #31cbff, #5289ff);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.topbar .title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+}
+
+.topbar .current-role {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+.topbar .actions .el-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: all 0.3s ease;
+}
+
+.topbar .actions .el-button:hover {
+  background: rgba(99, 102, 241, 0.3);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.8);
+}
+
+/* 左侧边栏 */
 .sidebar {
   width: 220px;
-  background: #ffffff;
-  border-right: 1px solid #eaeaea;
+  background: #ececec;
+  border-right: 1px solid #e5e6eb;
   padding: 20px 15px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  box-shadow: -10px 10px 8px rgba(0, 0, 0, 0.426);
 }
 
 .logo-section {
@@ -236,30 +324,34 @@ const newChat = () => {
 }
 
 .logo-img {
-  border-radius: 12px;
+  border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  border: 3px solid rgba(255, 255, 255, 0.6);
 }
 
 .logo-text {
   font-size: 18px;
   font-weight: 600;
   margin-top: 10px;
-  color: #444;
+  color: #000000;
 }
 
+/* 按钮 */
 .new-chat-button {
   width: 100%;
   margin-top: 12px;
   border-radius: 8px;
   font-size: 14px;
-  background: #f5f5f5;
+  background: #f3f4f6;
   color: #333;
   border: none;
-  transition: all 0.2s;
+  transition: all 0.3s;
 }
 .new-chat-button:hover {
-  background: #eaeaea;
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.6);
 }
 
 /* 聊天主界面 */
@@ -267,7 +359,7 @@ const newChat = () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #f9f9f9;
+  background: transparent;
   padding: 0;
 }
 
@@ -276,8 +368,11 @@ const newChat = () => {
   flex-direction: column;
   flex: 1;
   padding: 20px;
+  background-size: cover;
 }
 
+
+/* 消息列表 */
 .message-list {
   flex: 1;
   overflow-y: auto;
@@ -286,56 +381,74 @@ const newChat = () => {
   flex-direction: column;
 }
 
-/* 消息气泡 */
 .message {
   max-width: 75%;
   padding: 12px 16px;
   margin-bottom: 14px;
-  border-radius: 12px;
+  border-radius: 14px;
   line-height: 1.5;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   font-size: 15px;
 }
 
 .user-message {
   align-self: flex-end;
-  background: #d1f1d6;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  color: #fff;
   border-bottom-right-radius: 4px;
+  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
 }
 
 .bot-message {
   align-self: flex-start;
-  background: #fff;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
+  color: #1e3a8a;
   border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 6px rgba(191, 219, 254, 0.5);
 }
 
-.message-icon {
-  display: none; /* 去掉图标，保持简洁 */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* 输入框区域 */
+/* 输入框 */
 .input-container {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-top: 1px solid #eaeaea;
+  border-top: 1px solid #e5e7eb;
   background: #fff;
-}
-
-.input-container .el-input {
-  flex: 1;
 }
 
 .input-container .el-input__inner {
   border-radius: 8px;
-  border: 1px solid #ddd;
-  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #333;
+}
+
+.input-container .el-input__inner::placeholder {
+  color: #9ca3af;
 }
 
 .input-container .el-button {
   margin-left: 10px;
   border-radius: 8px;
-  padding: 10px 18px;
+  background: #3b82f6;
+  color: #fff;
+  transition: all 0.3s;
+}
+.input-container .el-button:hover {
+  background: #2563eb;
 }
 
 /* 角色选择对话框 */
@@ -351,12 +464,14 @@ const newChat = () => {
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s;
   border-radius: 12px;
   padding: 10px;
+  background: #f9fafb;
 }
 .select-user:hover {
-  background: #f5f5f5;
+  background: #e0f2fe;
+  box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
 }
 
 .select-img {
@@ -365,21 +480,16 @@ const newChat = () => {
   border-radius: 12px;
   object-fit: cover;
   margin-bottom: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
-
 
 .loading-dots {
   padding-left: 5px;
 }
 
+/* 打字动画点 */
 .dot {
-  display: inline-block;
-  margin-left: 5px;
-  width: 8px;
-  height: 8px;
-  background-color: #000000;
-  border-radius: 50%;
-  animation: pulse 1.2s infinite ease-in-out both;
+  background-color: #3b82f6;
 }
 
 .dot:nth-child(2) {
@@ -399,16 +509,4 @@ const newChat = () => {
     opacity: 1;
   }
 }
-
-.input-container {
-  display: flex;
-}
-
-.input-container .el-input {
-  flex: 1;
-  margin-right: 10px;
-}
-
-/* 媒体查询，当设备宽度小于等于 768px 时应用以下样式 */
-
 </style>
