@@ -2,7 +2,7 @@
   <div class="app-layout" id="app-layout">
     <div class="sidebar">
       <div class="logo-section">
-        <img src="../assets/哈利波特.jpg" id="logo-img" width="160" height="160" class="logo-img" />
+        <img src="http://47.109.39.124/public/4c377441f4c2012135c76614fea448a0.jpg" id="logo-img" width="160" height="160" class="logo-img" />
         <!-- alt="" -->
         <span class="logo-text" id="logo-text">哈利波特</span>
       </div>
@@ -15,7 +15,7 @@
         <div class="selectUsers">
           <div v-for="(user, index) in users" :key="index" :id="user.name" class="select-user"
             @click="changeUser(user.img, user.name, user.background)">
-            <img :src="user.img" class="select-img" />
+            <img :src="user.avatar+'.jpg'" class="select-img" />
             <a style="font-size:20px">{{ user.name }}</a>
           </div>
         </div>
@@ -27,10 +27,6 @@
       <el-button class="new-chat-button" @click="newChat">
         <i class="fa-solid fa-plus"></i>
         &nbsp;新会话
-      </el-button>
-      <el-button class="new-chat-button" @click="getUsers">
-        <i class="fa-solid fa-plus"></i>
-        &nbsp;获取角色信息
       </el-button>
     </div>
     <div class="main-content">
@@ -74,14 +70,24 @@ const uuid = ref()
 const inputMessage = ref('')
 const messages = ref([])
 const dialogVisible = ref(false);
-const users = ref([{ img: "src/assets/哈利波特.jpg", name: "哈利波特", background: "src/assets/魔法学院.jpg" },
-{ img: "src/assets/苏格拉底.jpg", name: "苏格拉底", background: "src/assets/苏格拉底学院.jpg" }
-])
+const users = ref()
 
 onMounted(() => {
   initUUID()
   // 移除 setInterval，改用手动滚动
   watch(messages, () => scrollToBottom(), { deep: true })
+  axios.get('/api/assistant/list', {
+    params: {
+      tag: "all",
+      page: "1",
+      page_size: "10"
+    }
+  }
+  ).then((res)=>{
+    users.value=res.data;
+    console.log(users.value);
+    
+  });
   hello()
 })
 
@@ -95,18 +101,6 @@ const changeUser = (img, name, background) => {
   dialogVisible.value = false;
 }
 
-const getUsers = () => {
-  axios.get('/api/assistant/list', {
-    params: {
-      tag: "all",
-      page: "1",
-      page_size: "10"
-    }
-  }
-  ).then((res)=>{
-    console.log(res.data);
-  });
-}
 
 const scrollToBottom = () => {
   if (messaggListRef.value) {
