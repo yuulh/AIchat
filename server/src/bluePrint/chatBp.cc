@@ -117,18 +117,32 @@ void ChatBp::setBP()
             return;
         }else{
             WFFacilities::WaitGroup wait_group(1);
-            // 数据库查询会话列表
-            mysqlClient->setDB("AIchat");
-            const string sql = "SELECT conversation_id, title, update_time FROM conversation_list WHERE user_id = '" + user_id +
-                                 "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size);
-            mysqlClient->execute(sql, [&](WFMySQLTask *task){
-                Json ret = GET_MYSQL_RESP;
-                if(ret.is_null()){
-                    LOG_ERROR("mysql query is null");
+            redisClient->GET(user_id, [&](WFRedisTask *task){
+                protocol::RedisValue &redis_resp = GET_REDIS_RESP;
+                vector<string> redis_ret;
+                redisClient->parseResp(redis_resp, redis_ret);
+                if(redis_ret.empty()) {
+                    LOG_ERROR("redis query is null");
+
+                    // 数据库查询会话列表
+                    mysqlClient->setDB("AIchat");
+                    const string sql = "SELECT conversation_id, title, update_time FROM conversation_list WHERE user_id = '" + user_id +
+                                        "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size);
+                    mysqlClient->execute(sql, [&](WFMySQLTask *task){
+                        Json ret = GET_MYSQL_RESP;
+                        if(ret.is_null()){
+                            LOG_ERROR("mysql query is null");
+                        }
+                        resp->Json(ret);
+                        wait_group.done();
+                    });
+                }else{
+                    // 缓存命中
+                    resp->Json(redis_ret[0]);
+                    wait_group.done();
                 }
-                resp->Json(ret);
-                wait_group.done();
             });
+            
 
             wait_group.wait();
         }
