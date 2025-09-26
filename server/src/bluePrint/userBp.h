@@ -16,10 +16,11 @@ class UserBp : public BpBase {
     shared_ptr<MySqlClient> mysqlClient;
     shared_ptr<RedisClient> redisClient;
 public:
+    UserBp();
     UserBp(shared_ptr<HttpClient> httpClient, shared_ptr<MySqlClient> mysqlClient, shared_ptr<RedisClient> redisClient);
     // TODO: 移动、复制控制
 
     void setBP() override;
-}
+};
 
 #endif

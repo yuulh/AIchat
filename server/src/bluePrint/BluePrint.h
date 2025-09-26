@@ -3,5 +3,6 @@
 
 #include "BpBase.h"
 #include "chatBp.h"
+#include "userBp.h"
 
 #endif

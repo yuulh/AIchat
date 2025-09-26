@@ -139,6 +139,9 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
         }
 
     } while (cursor.next_result_set());
+
+    sprintf(logBuf, "%s", client->mysql_resp.dump().c_str());
+    LOG_DEBUG_BUF;
 }
 
 void MySqlClient::execute(const string& sql)
@@ -168,7 +171,7 @@ Json &MySqlClient::getResp()
 
 Json &MySqlClient::syncGetResp()
 {
-    wait();
+    WFTaskFactory::create_go_task()
     return mysql_resp;
 }
 

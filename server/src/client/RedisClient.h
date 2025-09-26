@@ -7,8 +7,16 @@
 #include <condition_variable>
 #include <workflow/WFTaskFactory.h>
 
+#define REDIS_TTL_1_MINUTE 60
+#define REDIS_TTL_1_HOUR 3600
+#define REDIS_TTL_1_DAY 86400
+#define REDIS_TTL_1_WEEK 604800
+#define REDIS_TTL_1_MONTH 2592000
+#define REDIS_TTL_LONG -1
+
 using std::string;
 using std::vector;
+
 
 class RedisClient {
     string host;
@@ -45,6 +53,8 @@ public:
 
     int HGET(const string &key, const string &field);
     int HSET(const string &key, const string &field, const string &value);
+
+    int EXPIRE(const string &key, int seconds);
 
     // 获取查询结果，resp传入this->redis_resp
     // 结果为纯string的数组

@@ -66,8 +66,6 @@ void RedisClient::redis_callback(WFRedisTask* task)
 					strncat(logBuf, param.c_str(), param.size());
 					strcat(logBuf, " ");
 				}
-				LOG_DEBUG(logBuf);
-                LOG_DEBUG(redisResp.string_view());
 			}
 			break;
 		}
@@ -192,4 +190,9 @@ int RedisClient::HGET(const string& key, const string& field)
 int RedisClient::HSET(const string& key, const string& field, const string& value)
 {
     return execute("HSET", { key, field, value });
+}
+
+int RedisClient::EXPIRE(const string& key, int seconds)
+{
+    return execute("EXPIRE", { key, std::to_string(seconds) });
 }
