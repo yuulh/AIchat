@@ -33,7 +33,9 @@ void Configuration::init()
         {"MySQL_PASSWORD", "123"},
         {"Redis_HOST", "127.0.0.1"},
         {"Redis_PORT", "6379"},
-        {"Retry_MAX", "3"}  // 最大重试次数
+        {"Redis_DATABASE", "1"},
+        {"Retry_MAX", "3"},  // 最大重试次数
+        {"MODEL_USER", "qwen-turbo"},  // 普通用户使用的模型id
     };
 
     ifstream ifs(this->path);

@@ -53,8 +53,8 @@ void UserBp::setBP()
 
             Json &res = *static_cast<Json *>(task->user_data);
 
-            sprintf(logBuf, "mysql_resp %ld: %s", res.size(), res.dump().c_str());
-            LOG_DEBUG_BUF;
+            // sprintf(logBuf, "mysql_resp %ld: %s", res.size(), res.dump().c_str());
+            // LOG_DEBUG_BUF;
             
             if (!res.size() || res.is_null()) {
                 LOG_ERROR("用户名或密码错误");

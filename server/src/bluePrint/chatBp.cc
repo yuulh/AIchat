@@ -26,25 +26,32 @@ void ChatBp::setBP()
         }
 
         auto getKeyName = [](const string &tag, const int &page, const int &page_size) {
-            return "assistant_" + tag + "_page_" + std::to_string(page) + "&" + std::to_string(page_size);
+            return "assistant_" + tag + "_page_" + std::to_string(page) + "_" + std::to_string(page_size);
         };
 
         WFFacilities::WaitGroup wait_group(1);
         if(redisClient){
 
             string key = getKeyName(tag, page, page_size);
-
+            
             redisClient->GET(key, [&](WFRedisTask *task){
-                protocol::RedisValue &redis_resp = *static_cast<protocol::RedisValue *>(series_of(task)->get_context());
-
+                protocol::RedisValue &redis_resp = GET_REDIS_RESP;
+                
+                // 未知原因，到这里key会被修改，需要重新赋值
+                key = getKeyName(tag, page, page_size);
                 vector<string> redis_ret;
                 redisClient->parseResp(redis_resp, redis_ret);
+
+                
+
+                sprintf(logBuf, "redis_resp: %ld    redis_ret: %ld", redis_resp.arr_size(), redis_ret.size());
+                LOG_DEBUG_BUF;
 
                 if(redis_ret.empty()) {
                     // 去数据库查询
                     mysqlClient->setDB("AIchat");
                     mysqlClient->execute("SELECT * FROM assistant_" + tag + " LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size), [&](WFMySQLTask *task){
-                        Json ret = *static_cast<Json *>(series_of(task)->get_context());
+                        Json ret = GET_MYSQL_RESP;
 
                         if(ret.is_null()){
                             LOG_ERROR("mysql query is null");
@@ -87,6 +94,10 @@ void ChatBp::setBP()
 
         // 获取cookie
         const std::string &cookie_val = req->cookie("u");  // 用户id
+        
+        sprintf(logBuf, "cookie_val: %s", cookie_val.c_str());
+        LOG_DEBUG(logBuf);
+
         if(cookie_val.empty()) {
             resp->set_status(HttpStatusBadRequest);
             return;
@@ -102,14 +113,16 @@ void ChatBp::setBP()
         // 不存在该cookie，登录失效
         if(user_id.empty()) {
             resp->set_status(HttpStatusBadRequest);
+            resp->String("无效的Cookie");
             return;
         }else{
             WFFacilities::WaitGroup wait_group(1);
             // 数据库查询会话列表
             mysqlClient->setDB("AIchat");
-            mysqlClient->execute("SELECT conversation_id, title FROM conversation WHERE user_id = '" + user_id +
-                                 "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size), [&](WFMySQLTask *task){
-                Json ret = *static_cast<Json *>(series_of(task)->get_context());
+            const string sql = "SELECT conversation_id, title, update_time FROM conversation_list WHERE user_id = '" + user_id +
+                                 "' LIMIT " + std::to_string(offset) + ", " + std::to_string(page_size);
+            mysqlClient->execute(sql, [&](WFMySQLTask *task){
+                Json ret = GET_MYSQL_RESP;
                 if(ret.is_null()){
                     LOG_ERROR("mysql query is null");
                 }
@@ -125,11 +138,12 @@ void ChatBp::setBP()
     // 与模型聊天
     bp.POST("/assistant/stream", [this](const HttpReq *req, HttpResp *resp)
     {
-        /*
-        用户发送一个消息，内容应该为：
+        /* 用户发送一个消息，内容应该为：
         {
             assistant_id: string,   // 角色id，用于查询角色设定
             conversation_id: string,  // 会话id，用于跟踪会话，保持记忆
+            stream: bool,
+            first: bool,  // 是否第一次聊天, 或者说是否为一个新的会话
             messages: [{
                 role: string,
                 content: [
@@ -140,8 +154,73 @@ void ChatBp::setBP()
             data: {},  // 额外的数据
         }
         */
+
+       /* 模型需要的
+        
+            curl https://openai.qiniu.com/v1/chat/completions \
+            --request POST \
+            --header 'Authorization: Bearer <API_KEY>' \
+            --header 'Content-Type: application/json' \
+            --data '{
+            "stream": true,
+            "model": "qwen-turbo",
+            "messages": [
+                {
+                "role": "system",
+                "content": "You are a helpful assistant."  // 角色设定
+                },
+                {
+                "role": "user",
+                "content": "你好"
+                },
+                {
+                    "role": "assistant",
+                    "content": "你好啊，我是通义千问。"
+                },
+            ]
+            }'
+       */
         json body = json::parse(req->body());
+        
+        sprintf(logBuf, "post data: %s", body.dump().c_str());
+        LOG_DEBUG_BUF;
+
+        if(!body.size() || body.is_null()){
+            LOG_INFO("body is null");
+            resp->String("参数不能为空");
+            return;
+        }
+
         // redis中查询角色id，失败则查询数据库
+        WFFacilities::WaitGroup wait_group(2);
+
+        // 第一次聊天需要获取角色设定
+        if(body["first"]){
+            redisClient->GET("assistant_" + body["assistant_id"], [&](WFRedisTask *task){
+                protocol::RedisValue redis_value = GET_REDIS_RESP;
+    
+                vector<string> redis_ret;
+                redisClient->parseResp(redis_value, redis_ret);
+    
+                if(redis_ret.empty()) {
+                    // 去数据库查询
+                    mysqlClient->setDB("AIchat");
+                    const string sql = "SELECT prompt FROM prompt WHERE assistant_id = " + body["assistant_id"];
+                    mysqlClient->execute(sql , [&](WFMySQLTask *task){
+                        Json ret = GET_MYSQL_RESP;
+    
+                        if(ret.is_null()){
+                            LOG_ERROR("mysql query is null");
+                        }
+    
+                        redisClient->SET(key, ret.dump(), nullptr);
+                        resp->Json(ret);
+                        wait_group.done();
+                    });
+                }
+    
+            });
+        }
         // 通过角色id获取角色设定等，不存在则不带任何设定
         // 获取会话id
         // 会话不存在则开启新会话

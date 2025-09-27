@@ -9,6 +9,7 @@
 #include <mutex>
 #include <condition_variable>
 
+#define GET_MYSQL_RESP (*static_cast<Json *>(task->user_data))
 
 using namespace wfrest;
 using namespace protocol;

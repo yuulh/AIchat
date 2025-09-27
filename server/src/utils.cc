@@ -9,7 +9,7 @@ string Cookie2User_id(RedisClient &redis, const string &cookie)
     WFFacilities::WaitGroup wait_group(1);
 
     redis.execute("GET", {cookie}, [&](WFRedisTask *task){
-        protocol::RedisValue &redis_resp = *static_cast<protocol::RedisValue *>(series_of(task)->get_context());
+        protocol::RedisValue &redis_resp = GET_REDIS_RESP;
         redis.parseResp(redis_resp, redis_ret);
         wait_group.done();
     });
