@@ -1,9 +1,9 @@
 <template>
   <div class="app-layout" id="app-layout">
+
     <div class="sidebar">
       <div class="logo-section">
-        <img src="" id="logo-img" width="160"
-          height="160" class="logo-img" />
+        <img src="" id="logo-img" width="160" height="160" class="logo-img" />
         <!-- alt="" -->
         <span class="logo-text" id="logo-text"></span>
       </div>
@@ -64,6 +64,9 @@
         <div class="input-container">
           <el-input v-model="inputMessage" placeholder="请输入消息" @keyup.enter="sendMessage"></el-input>
           <el-button @click="sendMessage" :disabled="isSending" type="primary">发送</el-button>
+          <el-button @click="startVoiceInput" circle class="mic-button">
+            <i class="fa-solid fa-microphone"></i>
+          </el-button>
         </div>
       </div>
     </div>
@@ -85,7 +88,8 @@ const messages = ref([])
 const dialogVisible = ref(true);
 const users = ref()
 const currentRole = ref('') // 这里可以根据用户选择更新
-const props=defineProps(['setRoute']);
+const props = defineProps(['setRoute']);
+let recognition;//语音识别对象
 
 const handleLogout = () => {
   ElMessageBox.confirm(
@@ -102,7 +106,7 @@ const handleLogout = () => {
       console.log("123")
     })
     .catch(() => {
-      
+
     })
 }
 
@@ -130,17 +134,51 @@ onMounted(() => {
   hello()
 })
 
+const startVoiceInput = () => {
+  // 兼容性处理
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    ElMessage.error("当前浏览器不支持语音输入，请使用 Chrome 或 Edge");
+    return;
+  }
+
+  if (!recognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = "zh-CN"; // 识别中文
+    recognition.interimResults = false; // 是否返回临时结果
+    recognition.maxAlternatives = 1; // 候选结果数量
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      inputMessage.value = transcript; // 把识别的内容放入输入框
+      console.log("识别结果：", transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("语音识别错误：", event.error);
+      ElMessage.error("语音识别出错，请重试");
+    };
+
+    recognition.onend = () => {
+      console.log("语音识别结束");
+    };
+  }
+
+  recognition.start();
+  ElMessage.info("正在听，请开始说话…");
+};
+
 const changeUser = (img, name, background) => {
   const mainImg = document.getElementById("logo-img");
   const mainName = document.getElementById("logo-text");
   const backgroundimg = document.getElementById("chat-container");
   mainImg.src = img;
   mainName.innerHTML = name;
-  currentRole.value=name;
+  currentRole.value = name;
   backgroundimg.style.backgroundImage = "url(" + background + ")";
   console.log(img);
   dialogVisible.value = false;
-  messages.value=[];
+  messages.value = [];
   hello()
 }
 
@@ -256,11 +294,11 @@ const newChat = () => {
 .app-layout {
   display: flex;
   height: 100vh;
-  background: linear-gradient(135deg, #e6f7ff, #d9f7f5);
-  color: #333;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  /* background-image: url('src/assets/魔法学院.jpg'); */
+  background: radial-gradient(circle at top left, #0f172a, #1e293b, #0f172a);
+  color: #e2e8f0;
+  font-family: 'Orbitron', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background-size: cover;
+  overflow: hidden;
 }
 
 
@@ -271,31 +309,31 @@ const newChat = () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  background: linear-gradient(90deg, #31cbff, #5289ff);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(90deg, rgba(30, 41, 59, 0.7), rgb(11, 11, 81));
+  box-shadow: 0 4px 20px rgba(0, 255, 255, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .topbar .title {
   font-size: 20px;
   font-weight: 700;
-  color: #ffffff;
-  letter-spacing: 1px;
-  text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px #38bdf8;
 }
 
 .topbar .current-role {
   font-size: 16px;
   font-weight: 600;
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.405);
 }
 
 .topbar .actions .el-button {
-  background: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
   color: #e0e0e0;
   border-radius: 8px;
   padding: 6px 12px;
-  transition: all 0.3s ease;
 }
 
 .topbar .actions .el-button:hover {
@@ -307,13 +345,14 @@ const newChat = () => {
 /* 左侧边栏 */
 .sidebar {
   width: 220px;
-  background: #ececec;
-  border-right: 1px solid #e5e6eb;
+  background: rgba(30, 41, 59, 0.7);
+  backdrop-filter: blur(8px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
   padding: 20px 15px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: -10px 10px 8px rgba(0, 0, 0, 0.426);
+  box-shadow: inset -4px 0 12px rgba(0, 255, 255, 0.15);
 }
 
 .logo-section {
@@ -326,16 +365,18 @@ const newChat = () => {
 .logo-img {
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-  border: 3px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 12px rgba(0, 255, 255, 0.7);
+  border: 3px solid rgba(56, 189, 248, 0.6);
 }
 
 .logo-text {
   font-size: 18px;
   font-weight: 600;
   margin-top: 10px;
-  color: #000000;
+  color: #38bdf8;
+  text-shadow: 0 0 10px #06b6d4;
 }
+
 
 /* 按钮 */
 .new-chat-button {
@@ -343,15 +384,21 @@ const newChat = () => {
   margin-top: 12px;
   border-radius: 8px;
   font-size: 14px;
-  background: #f3f4f6;
-  color: #333;
+  font-weight: 600;
+  /* 字体加粗 */
+  background: linear-gradient(135deg, #0ea5e9, #6366f1);
+  color: #fff;
   border: none;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  /* 给文字加深色阴影，提高可读性 */
   transition: all 0.3s;
 }
+
 .new-chat-button:hover {
-  background: #2563eb;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.8);
   color: #fff;
-  box-shadow: 0 0 8px rgba(37, 99, 235, 0.6);
 }
 
 /* 聊天主界面 */
@@ -368,8 +415,15 @@ const newChat = () => {
   flex-direction: column;
   flex: 1;
   padding: 20px;
-  background-size: cover;
+  background: rgba(15, 23, 42, 0.6);
+  background-image: url('src/assets/苏格拉底学院.jpg');
+  background-size:cover;
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  margin: 12px;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
 }
+
 
 
 /* 消息列表 */
@@ -390,21 +444,22 @@ const newChat = () => {
   font-size: 15px;
 }
 
+/* 消息气泡 */
 .user-message {
   align-self: flex-end;
-  background: linear-gradient(135deg, #4ade80, #22c55e);
+  background: linear-gradient(135deg, #0ea5e9, #2563eb);
   color: #fff;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 2px 6px rgba(34, 197, 94, 0.4);
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.7);
 }
 
 .bot-message {
   align-self: flex-start;
-  background: #dbeafe;
-  border: 1px solid #bfdbfe;
-  color: #1e3a8a;
+  background: rgba(56, 191, 248, 0.8);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #e0f2fe;
   border-bottom-left-radius: 4px;
-  box-shadow: 0 2px 6px rgba(191, 219, 254, 0.5);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 
 
@@ -425,15 +480,17 @@ const newChat = () => {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(30, 41, 59, 0.8);
+  backdrop-filter: blur(6px);
+  border-radius: 12px;
 }
 
 .input-container .el-input__inner {
   border-radius: 8px;
-  border: 1px solid #d1d5db;
-  background: #f9fafb;
-  color: #333;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+  color: #fff;
 }
 
 .input-container .el-input__inner::placeholder {
@@ -443,12 +500,27 @@ const newChat = () => {
 .input-container .el-button {
   margin-left: 10px;
   border-radius: 8px;
-  background: #3b82f6;
+  background: linear-gradient(135deg, #06b6d4, #3b82f6);
   color: #fff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.7);
+}
+
+.input-container .el-button:hover {
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+}
+
+.mic-button {
+  margin-left: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #22d3ee, #3b82f6);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.6);
   transition: all 0.3s;
 }
-.input-container .el-button:hover {
-  background: #2563eb;
+
+.mic-button:hover {
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.8);
 }
 
 /* 角色选择对话框 */
@@ -469,6 +541,7 @@ const newChat = () => {
   padding: 10px;
   background: #f9fafb;
 }
+
 .select-user:hover {
   background: #e0f2fe;
   box-shadow: 0 0 8px rgba(37, 99, 235, 0.4);
@@ -480,16 +553,14 @@ const newChat = () => {
   border-radius: 12px;
   object-fit: cover;
   margin-bottom: 8px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-.loading-dots {
-  padding-left: 5px;
-}
-
-/* 打字动画点 */
-.dot {
-  background-color: #3b82f6;
+/* 加载点动画 */
+.loading-dots .dot {
+  background-color: #38bdf8;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: pulse 1.5s infinite;
 }
 
 .dot:nth-child(2) {

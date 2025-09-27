@@ -18,5 +18,6 @@ function setRoute(e){
 html,
 body {
   overflow: hidden;
+  margin:0px;
 }
 </style>
