@@ -17,7 +17,7 @@ UserBp::UserBp()
 , redisClient(new RedisClient(CONFIG["Redis_HOST"], CONFIG["Redis_PORT"],
               CONFIG["Redis_PASSWORD"], CONFIG["Redis_DATABASE"],
               atoi(CONFIG["Retry_MAX"].c_str())))
-, httpClient(new HttpClient(CONFIG["LLM_URL"]))
+, httpClient(new HttpClient())
 {}
 
 UserBp::UserBp(shared_ptr<HttpClient> httpClient, shared_ptr<MySqlClient> mysqlClient, shared_ptr<RedisClient> redisClient)

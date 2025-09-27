@@ -22,7 +22,7 @@ using namespace wfrest;
     用于和模型进行交互
 */
 class ChatBp : public BpBase{
-    string key;  // api key
+    string api_key;  // api key
     shared_ptr<HttpClient> httpClient;  // 用于和模型交互的http客户端
     shared_ptr<RedisClient> redisClient;
     shared_ptr<MySqlClient> mysqlClient;

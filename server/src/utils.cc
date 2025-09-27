@@ -29,6 +29,7 @@ std::string generate_uuid() {
     return uuid_str;
 }
 
+
 /* files_t utils::readDir(const string &dir)
 {
     DIR *dirf = opendir(dir.c_str());

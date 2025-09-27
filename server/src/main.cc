@@ -14,9 +14,14 @@ int main()
 {
     log4cpp::PropertyConfigurator::configure(CONFIG["logConfigPath"]);
     
+    // 启动SNI，解决SSL错误问题
+    WFGlobalSettings settings = GLOBAL_SETTINGS_DEFAULT;
+	settings.endpoint_params.use_tls_sni = true;
+	WORKFLOW_library_init(&settings);
+
     HttpServer svr;
 
-    ChatBp chatBp("123");
+    ChatBp chatBp(CONFIG["API_KEY"]);
     chatBp.setBP();
     svr.register_blueprint(chatBp.getBP(), "/api");
 

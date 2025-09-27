@@ -27,6 +27,7 @@ void Configuration::init()
         {"logConfigPath", dirname + "/server/config/log4cpp.conf"},
         {"PORT", "8090"},  // 启动端口
         {"LLM_URL", "https://openai.qiniu.com/v1/chat/completions"},  // 大模型api的url
+        {"TTS_URL", "https://openai.qiniu.com/v1/voice/tts"},  // 文本转语音api的url"}
         {"MySQL_HOST", "127.0.0.1"},  // mysql数据库地址"
         {"MySQL_PORT", "3306"},  // mysql数据库端口
         {"MySQL_USER", "123"},
@@ -36,6 +37,7 @@ void Configuration::init()
         {"Redis_DATABASE", "1"},
         {"Retry_MAX", "3"},  // 最大重试次数
         {"MODEL_USER", "qwen-turbo"},  // 普通用户使用的模型id
+        {"API_KEY", "sk-123"},  // api key
     };
 
     ifstream ifs(this->path);
@@ -45,9 +47,14 @@ void Configuration::init()
         return;
     }
 
+    cout << "正在加载配置文件：" << this->path << "\n";
     string s;
     while(std::getline(ifs, s)){
+        if(s.empty()) continue;
+
+        // cout << s.size() << " " << s << std::endl;
         auto conf = this->getPair(s, " ");
+        cout << conf.first << ": " << conf.second << "\n";
         if(this->configs.find(conf.first) == this->configs.end())  // 如果不存在这个配置项
             continue;
         
