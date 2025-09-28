@@ -156,6 +156,28 @@ void ChatBp::setBP()
     // 与模型聊天
     bp.POST("/assistant/stream", [this](const HttpReq *req, HttpResp *resp)
     {
+
+
+        // 获取cookie
+        const std::string &cookie_val = req->cookie("u");
+        sprintf(logBuf, "cookie_val: %s", cookie_val.c_str());
+        LOG_DEBUG_BUF;
+        if(cookie_val.empty()) {
+            LOG_INFO("cookie is null");
+            resp->set_status(HttpStatusBadRequest);
+            return;
+        }
+        const string user_id = Cookie2User_id(*redisClient, cookie_val);
+        if(user_id.empty()) {
+            LOG_INFO("invalid cookie");
+            resp->set_status(HttpStatusBadRequest);
+            resp->String("无效的Cookie");
+            return;
+        }
+
+        sprintf(logBuf, "user_id: %s", user_id.c_str());
+        LOG_DEBUG_BUF;
+
         /* 用户发送一个消息，内容应该为：
         {
             assistant_id: string,   // 角色id，用于查询角色设定
@@ -163,10 +185,10 @@ void ChatBp::setBP()
             stream: bool,
             messages: [{
                 role: string,
-                content: [
+                content: {
                     type: string,
                     text: string,
-                ],
+                },
             }],
             data: {},  // 额外的数据
         }
@@ -220,7 +242,7 @@ void ChatBp::setBP()
         // redis中查询角色id，失败则查询数据库
         WFFacilities::WaitGroup wait_group(1);
 
-        const string conversation_id = body["conversation_id"];
+        string conversation_id = body["conversation_id"];
         string assistant_prompt;
         // 第一次聊天需要获取角色设定
         if(conversation_id.empty()){
@@ -265,18 +287,47 @@ void ChatBp::setBP()
 
                 send_model["messages"].push_back(body["messages"][0]);
                 // 至此，请求体拼接完成
+
+                // 新建一个会话
+
+                LOG_INFO("新建一个会话");
+
+                string key = generate_uuid();
+                redisClient->SET(key, send_model.dump(), nullptr);
+
+                string title = body["messages"][0]["content"].get<string>();
+                const string sql = "INSERT INTO conversation (conversation_id, user_id, title, messages, update_time, create_time) VALUES \
+                (\"" + key + "\", \"" + user_id + "\", \"" + title \
+                + "\", \"" + body["messages"].dump() + "\", \"" + getCurrDateTime() + "\", \"" + getCurrDateTime() + "\")";
+                mysqlClient->execute(sql, nullptr);
+                LOG_INFO("新建会话异步任务已创建完成");
+                conversation_id = key;
                 wait_group.done();
 
             });
         }else{  // 旧会话，直接获取body中的messages
             send_model["messages"] = body["messages"];
+
+            send_model["messages"].push_back(body["messages"][0]);
+
+            // 更新update_time
+            const string sql = "UPDATE conversation SET update_time = \"" + getCurrDateTime() + "\" WHERE conversation_id = \"" + conversation_id + "\"";
+            mysqlClient->execute(sql, nullptr);
+
+            // 更新会话中的messages
+            redisClient->SET(conversation_id, send_model.dump(), nullptr);
+
             wait_group.done();
         }
         
         wait_group.wait();
 
         WFFacilities::WaitGroup wait_tts_res(1);
+        // Json tts_resp;
+        string http_resp;
+        size_t http_resp_len;
         Json tts_resp;
+        Json tts_req;
         httpClient->POST(CONFIG["LLM_URL"],
         {
             {"Authorization", "Bearer " + this->api_key},
@@ -341,10 +392,10 @@ void ChatBp::setBP()
             sprintf(logBuf, "voice_type: %s", voice_type.c_str());
             LOG_DEBUG_BUF;
 
-            Json tts_req;
             tts_req["audio"] = Json::Object{
                 {"voice_type", voice_type},
                 {"encoding", "mp3"},
+                {"speed_ratio", 1.0}
             };
             // tts_req["audio"]["speed_ratio"] = 1.0;
             // tts_req["audio"]["encoding"] = "mp3";
@@ -363,29 +414,36 @@ void ChatBp::setBP()
             // 时间不够，只能粗鲁一点了
 
             WFFacilities::WaitGroup wait_tts_temp(1);
-            WFHttpTask *task = WFTaskFactory::create_http_task(CONFIG["TTS_URL"], 3, 3, [&](WFHttpTask *task){
-                sprintf(logBuf, "tts req: %s", CONFIG["TTS_URL"].c_str());
-                LOG_DEBUG_BUF;
+            sprintf(logBuf, "tts req: %s", CONFIG["TTS_URL"].c_str());
+            LOG_DEBUG_BUF;
 
+
+            // 不使用chunked, 会导致结果有chunk长度，数据不可用!!!!!!
+            WFHttpChunkedTask *task = WFHttpChunkedClient::create_chunked_task(CONFIG["TTS_URL"], 3, [&](WFHttpChunkedTask *task){
+                protocol::HttpMessageChunk *chunk = task->get_chunk();
+                const void *chunk_data;
+                size_t chunk_size;
+
+                chunk->get_chunk_data(&chunk_data, &chunk_size);
                 // TODO: 错误检查
-                LOG_DEBUG("geted tts res");
-                const void *http_resp;
-                size_t len;
-                task->get_resp()->get_parsed_body(&http_resp, &len);
 
-                sprintf(logBuf, "tts resp size: %ld", len);
-                LOG_DEBUG_BUF;
+                // 结果中会有多余的\r!!!!!!!!!!!!!!!
+                http_resp.append(static_cast<const char *>(chunk_data));
+                if(http_resp[http_resp.size() - 2] == '\r'){
+                    http_resp.erase(http_resp.size() - 2);
+                }
 
-                string resp_buf = static_cast<const char *>(http_resp);
+            }, [&](WFHttpChunkedTask *task){
+                LOG_DEBUG("tts req done");
 
-                sprintf(logBuf, "tts resp: %ld %s", resp_buf.size(), resp_buf.c_str());
-                LOG_DEBUG_BUF;
+                sprintf(logBuf, "totol size: %ld", http_resp.size());
+                LOG_DEBUG(logBuf);
 
-                tts_resp = Json::parse(resp_buf);
+                // LOG_DEBUG(http_resp);
 
-                sprintf(logBuf, "tts resp: %s", tts_resp.dump().c_str());
-                LOG_DEBUG_BUF;
-                wait_tts_temp.done();
+                tts_resp = Json::parse(http_resp);
+
+                wait_tts_res.done();
             });
             task->get_req()->set_method("POST");
             task->get_req()->add_header_pair("Content-Type", "application/json");
@@ -395,7 +453,7 @@ void ChatBp::setBP()
             sprintf(logBuf, "api_key: %s", this->api_key.c_str());
             LOG_DEBUG_BUF;
 
-            task->get_resp()->append_output_body(tts_req.dump());
+            task->get_req()->append_output_body(tts_req.dump());
             task->start();
             wait_tts_temp.wait();
             wait_tts_res.done();
@@ -403,18 +461,60 @@ void ChatBp::setBP()
 
         wait_tts_res.wait();
 
+
+        LOG_DEBUG("成功获取TTS结果，开始转文件");
         // 获取当前时间戳
         string timestamp = std::to_string(time(nullptr));
-        const string path = "/usr/AIchat/public/" + conversation_id + "_" + timestamp + ".mp3";
-        int fd = open(path.c_str(), O_CREAT | O_RDWR, 0666);
+        const string path = "/usr/AIchat/public/" + conversation_id + "-" + timestamp + ".mp3";
 
-        string audio_url;
-        if(tts_resp["data"]){
-            const string audio_file = tts_resp["data"].get<string>();
-            write(fd, audio_file.c_str(), audio_file.size());
-            audio_url = path;
+        sprintf(logBuf, "path: %s", path.c_str());
+        LOG_DEBUG_BUF;
+
+        int fd = open(path.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0666);
+        if(fd == -1){
+            LOG_ERROR("open file error");
+            close(fd);
+            resp->Json(Json::Object{
+                {"message", "open file error"},
+                {"audio_url", ""},
+                {"text", ""}
+            });
+            return;
         }
 
+
+        LOG_DEBUG("文件打开成功");
+
+        string audio_url = "http://47.109.39.124/public/";
+
+
+        sprintf(logBuf, "tts_resp dump size: %ld", tts_resp.dump().size());
+        LOG_DEBUG_BUF;
+
+        if(tts_resp["data"].size() && !tts_resp["data"].is_null()){
+            const string audio_file = tts_resp["data"].get<string>();
+
+            auto *mp3_task = WFTaskFactory::create_go_task("tomp3", [](int fd, string audio_file){
+                string mp3_file = base64_decode(audio_file);
+                write(fd, mp3_file.c_str(), mp3_file.size());
+                LOG_DEBUG("file writed");
+                close(fd);
+            }, fd, audio_file);
+            mp3_task->start();
+
+            audio_url += conversation_id + "-" + timestamp + ".mp3";
+            sprintf(logBuf, "audio_url: %s", audio_url.c_str());
+            LOG_DEBUG_BUF;
+        }else{
+            LOG_ERROR("tts_resp error");
+            resp->Json(Json::Object{
+                {"message", "tts_resp error"},
+                {"audio_url", ""},
+                {"text", ""}
+            });
+            close(fd);
+            return;
+        }
 
         Json send_resp = Json::Object{
             {"message", "success"},
@@ -422,7 +522,10 @@ void ChatBp::setBP()
             {"text", httpClient->getModelResp()}
         };
 
-        resp->Json(tts_resp);
+        sprintf(logBuf, "send_resp: %s", send_resp.dump().c_str());
+        LOG_DEBUG_BUF;
+
+        resp->Json(send_resp);
 
         // 通过角色id获取角色设定等，不存在则不带任何设定
         // 获取会话id
@@ -466,22 +569,4 @@ int ChatBp::sendMessage(const string &message)
 {
     return 0;
 }
-/* 
-class ChatBp : public BpBase{
-    string key;  // api key
-public:
-    ChatBp();
-    ChatBp(const string &key);
 
-    void setContext(void *context);
-
-    int sendMessage(const string &message);
-
-    void setBP() override;
-
-    vector<string> system;  // 用于设置模型的基础行为、身份或规则，是上下文的最高级指令。
-    vector<string> user;  // 用户发送的内容
-    vector<string> assistant;  // 模型的历史回复
-    
-    void *context;  // 对象间通信用
-}; */

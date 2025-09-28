@@ -3,7 +3,6 @@
 
 #include <string>
 #include <workflow/WFTaskFactory.h>
-#include <workflow/WFHttpChunkedClient.h>
 #include <wfrest/Json.h>
 #include <vector>
 
@@ -21,10 +20,9 @@ class HttpClient{
 
     Json http_resp;
     string model_resp_buf;  // 模型回复的文字内容
-    WFHttpChunkedTask *task;
+    WFHttpTask *task;
 
-    static void http_callback(WFHttpChunkedTask *task);
-    static void http_extract(WFHttpChunkedTask *task);
+    static void http_callback(WFHttpTask *task);
     void execute(const string &method, const string &url, const vector<std::pair<string, string>>& headers, const Json& body, const http_callback_type & callback);
 
 public:

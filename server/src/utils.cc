@@ -29,6 +29,40 @@ std::string generate_uuid() {
     return uuid_str;
 }
 
+// 获取当前时间，格式：yyyy-mm-dd hh:mm:ss
+string getCurrDateTime()
+{
+    time_t now = time(nullptr);
+    struct tm *tm_info = localtime(&now);
+    char buf[20];
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", tm_info);
+    return string(buf);
+}
+
+
+// base64解码
+static const std::string base64_chars = 
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+std::string base64_decode(const std::string &encoded) {
+    std::string ret;
+    std::vector<int> vec(256, -1);
+    
+    for (int i = 0; i < 64; i++)
+        vec[base64_chars[i]] = i;
+    
+    int val = 0, valb = -8;
+    for (unsigned char c : encoded) {
+        if (vec[c] == -1) break;
+        val = (val << 6) + vec[c];
+        valb += 6;
+        if (valb >= 0) {
+            ret.push_back(char((val >> valb) & 0xFF));
+            valb -= 8;
+        }
+    }
+    return ret;
+}
+
 
 /* files_t utils::readDir(const string &dir)
 {

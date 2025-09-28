@@ -23,8 +23,8 @@ void HttpClient::http_extract(WFHttpChunkedTask *task)
     
     string chunk_buf = string((const char *)chunk_data);
 
-    sprintf(logBuf, "chunk_data: %p  %s", chunk_data, chunk_buf.c_str());
-    LOG_DEBUG_BUF;
+    // sprintf(logBuf, "chunk_data: %p  %s", chunk_data, chunk_buf.c_str());
+    // LOG_DEBUG_BUF;
 
     if(chunk_buf.empty() || chunk_buf.size() < 20) return;
     Json data = Json::parse(chunk_buf.substr(strlen("data: ")));
