@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "Log.h"
 #include <uuid/uuid.h>
 #include <workflow/WFFacilities.h>
 
@@ -9,7 +10,10 @@ string Cookie2User_id(RedisClient &redis, const string &cookie)
     WFFacilities::WaitGroup wait_group(1);
 
     redis.execute("GET", {cookie}, [&](WFRedisTask *task){
+        LOG_DEBUG("cookie to redis");
         protocol::RedisValue &redis_resp = GET_REDIS_RESP;
+        sprintf(logBuf, "cookie to %s", redis_resp.string_view()->c_str());
+        LOG_DEBUG(logBuf);
         redis.parseResp(redis_resp, redis_ret);
         wait_group.done();
     });

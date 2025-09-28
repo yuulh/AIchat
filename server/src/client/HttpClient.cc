@@ -26,12 +26,12 @@ void HttpClient::http_extract(WFHttpChunkedTask *task)
     // sprintf(logBuf, "chunk_data: %p  %s", chunk_data, chunk_buf.c_str());
     // LOG_DEBUG_BUF;
 
-    if(chunk_buf.empty() || chunk_buf.size() < 20) return;
+    if(chunk_buf.empty() || chunk_buf.size() < 10 || chunk_buf.find("DONE") != string::npos) return;
     Json data = Json::parse(chunk_buf.substr(strlen("data: ")));
 
 
-    sprintf(logBuf, "a extract json dump: /[%s]/\n", data.dump().c_str());
-    LOG_DEBUG_BUF;
+    // sprintf(logBuf, "a extract json dump: /[%s]/\n", data.dump().c_str());
+    // LOG_DEBUG_BUF;
 
     const string &content = data["choices"][0]["delta"]["content"].get<string>();
     if(!content.empty())

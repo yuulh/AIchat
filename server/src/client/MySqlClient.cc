@@ -135,7 +135,7 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
 
 void MySqlClient::execute(const string& sql, const mysql_query_callback &callback)
 {
-    sprintf(logBuf, "MySQL url: %s send command: \"%s\"", this->getUrl().c_str(), sql.c_str());
+    sprintf(logBuf, "MySQL url: %s send command: %s", this->getUrl().c_str(), sql.c_str());
     LOG_DEBUG_BUF;
 
     task = WFTaskFactory::create_mysql_task(this->getUrl(), retry_max, mysql_callback);
@@ -144,8 +144,10 @@ void MySqlClient::execute(const string& sql, const mysql_query_callback &callbac
 
     auto *series_task = Workflow::create_series_work(this->task, nullptr);
     auto *get_res_task = WFTaskFactory::create_go_task("getRES", callback, this->task);
-    if(callback)
+    if(callback){
+        auto *get_res_task = WFTaskFactory::create_go_task("getRES", callback, this->task);   
         series_task->push_back(get_res_task);
+    }
 
     series_task->start();
 }

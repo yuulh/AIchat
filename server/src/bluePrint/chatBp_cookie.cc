@@ -22,7 +22,6 @@ void ChatBp::setBP()
 
         if(tag.empty()) {
             resp->set_status(HttpStatusBadRequest);
-            resp->String("无效的参数");
             return;
         }
 
@@ -31,7 +30,6 @@ void ChatBp::setBP()
         };
 
         WFFacilities::WaitGroup wait_group(1);
-        LOG_DEBUG("开始获取角色列表");
         if(redisClient){
 
             string key = getKeyName(tag, page, page_size);
@@ -77,8 +75,6 @@ void ChatBp::setBP()
             wait_group.done();
         }
         wait_group.wait();
-
-        LOG_DEBUG("结束获取角色列表");
         
     });
         
@@ -240,13 +236,6 @@ void ChatBp::setBP()
             resp->String("参数不能为空");
             return;
         }
-
-        if(body["assistant_id"].is_null()){
-            LOG_INFO("assistant_id is null");
-            resp->String("参数不能为空");
-            return;
-        }
-
         // 首先判断会话id是否为空，判断是否需要开启新会话
         // 如果是新会话，先根据角色id查询角色设定，messages为第一个聊天内容，应该push_front角色设定
         // 如果是旧会话，则messages字段应该就是模型需要的所有内容
@@ -275,9 +264,6 @@ void ChatBp::setBP()
 
                         if(ret.is_null()){
                             LOG_ERROR("mysql query is null");
-                            resp->set_status(HttpStatusBadRequest);
-                            resp->String("assistant_id error");
-                            return;
                         }
 
                         assistant_prompt = ret[0]["prompt"].get<string>();
@@ -311,8 +297,9 @@ void ChatBp::setBP()
                 redisClient->SET(key, send_model.dump(), nullptr);
 
                 string title = body["messages"][0]["content"].get<string>();
-                const string sql = "INSERT INTO conversation_list SET conversation_id='" + key + "', user_id='" + user_id + "', title='" + title + "', messages='" + body["messages"].dump() + "', update_time='" + getCurrDateTime() + "', create_time='" + getCurrDateTime() + "';";
-                mysqlClient->setDB("AIchat");
+                const string sql = "INSERT INTO conversation (conversation_id, user_id, title, messages, update_time, create_time) VALUES \
+                (\"" + key + "\", \"" + user_id + "\", \"" + title \
+                + "\", \"" + body["messages"].dump() + "\", \"" + getCurrDateTime() + "\", \"" + getCurrDateTime() + "\")";
                 mysqlClient->execute(sql, nullptr);
                 LOG_INFO("新建会话异步任务已创建完成");
                 conversation_id = key;
@@ -336,21 +323,12 @@ void ChatBp::setBP()
         
         wait_group.wait();
 
-        LOG_DEBUG("准备获取模型回复");
-
         WFFacilities::WaitGroup wait_tts_res(1);
         // Json tts_resp;
         string http_resp;
         size_t http_resp_len;
         Json tts_resp;
         Json tts_req;
-
-        if(this->api_key.empty()){
-            LOG_DEBUG("api_key is null");
-            resp->String("服务器错误");
-            return;
-        }
-
         httpClient->POST(CONFIG["LLM_URL"],
         {
             {"Authorization", "Bearer " + this->api_key},
@@ -375,12 +353,11 @@ void ChatBp::setBP()
                 }'
             */
 
-            LOG_DEBUG("成功获取模型回复");
+            LOG_DEBUG("geted LLM res");
 
             // 获取音色
             string voice_type;
             WFFacilities::WaitGroup wait_voice(1);
-            LOG_DEBUG("开始获取音色");
             redisClient->GET("tts_voice_" + body["assistant_id"].get<string>(), [&](WFRedisTask *task){
                 protocol::RedisValue redis_value = GET_REDIS_RESP;
                 vector<string> redis_ret;
@@ -412,7 +389,6 @@ void ChatBp::setBP()
                 }
             });
             wait_voice.wait();
-            LOG_DEBUG("音色获取完成");
 
             sprintf(logBuf, "voice_type: %s", voice_type.c_str());
             LOG_DEBUG_BUF;

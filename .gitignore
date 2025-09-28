@@ -3,6 +3,7 @@ log/
 .vscode/
 build/
 test/
+public/
 
 # Prerequisites
 *.d

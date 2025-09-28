@@ -49,7 +49,7 @@ void UserBp::setBP()
         mysqlClient->setDB("AIchat");
         const string sql = "select * from user where user = '" + user + "' and pwd = '" + pwd + "'";
         mysqlClient->execute(sql, [&](WFMySQLTask *task){
-            LOG_DEBUG("mysql查询结束，处理开始");
+            LOG_DEBUG("登录任务mysql查询结束，处理开始");
 
             Json &res = *static_cast<Json *>(task->user_data);
 
@@ -89,6 +89,10 @@ void UserBp::setBP()
                 sprintf(logBuf, "set cookie: u = %s", uuid.c_str());
                 LOG_DEBUG_BUF;
     
+                resp->add_header("Access-Control-Allow-Origin", "*"); // 允许所有源
+                resp->add_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+                resp->add_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+                resp->add_header("Access-Control-Allow-Credentials", "true");
                 resp->add_cookie(std::move(cookie));
                 resp->String("登录成功");
             }else {
