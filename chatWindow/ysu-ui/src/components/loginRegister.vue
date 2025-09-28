@@ -126,7 +126,7 @@ async function handleSubmit() {
       pwd: hashed,
     }
 
-    const url = mode.value === 'login' ? '/user/login' : '/user/register'
+    const url = mode.value === 'login' ? 'api/user/login' : 'api/user/register'
 
     const res = await fetch(url, {
       method: 'POST',
@@ -142,6 +142,9 @@ async function handleSubmit() {
     const data = await res.text();
     message.value = { type: 'success', text: data.message || (mode.value === 'login' ? '登录成功' : '注册成功') }
     if(mode.value==='login'){
+      localStorage.setItem('user',payload.user)
+      console.log(localStorage.getItem('user'));
+      
       props.setRoute('chat');
     }
 

@@ -8,7 +8,9 @@ import {ref} from 'vue'
 import ChatWindow from '@/components/ChatWindow.vue'
 import loginRegister from './components/loginRegister.vue';
 
-const route=ref('chat')
+const route=ref(localStorage.getItem('user')?'chat':'login')
+//route.value='chat'
+//localStorage.getItem('user')?'chat':'login'
 function setRoute(e){
   route.value=e;
 }

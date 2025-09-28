@@ -1,6 +1,16 @@
 <template>
   <div class="app-layout" id="app-layout">
+    <!-- 切换角色对话框 -->
+    <el-dialog v-model="dialogVisible" title="请选择您想要对话的角色" :before-close="handleClose" max-width="640px">
+      <div class="selectUsers">
+        <div v-for="(user, index) in users" :key="index" :id="user.name" class="select-user"
+          @click="changeUser(user.assistant_id, user.avatar, user.name, user.background)">
+          <img :src="user.avatar" class="select-img" />
+          <a style="font-size:20px">{{ user.name }}</a>
+        </div>
+      </div>
 
+    </el-dialog>
     <div class="sidebar">
       <div class="logo-section">
         <img src="" id="logo-img" width="160" height="160" class="logo-img" />
@@ -11,17 +21,6 @@
         <i class="fa-solid fa-user"></i>
         &nbsp;切换角色
       </el-button>
-      <!-- 切换角色对话框 -->
-      <el-dialog v-model="dialogVisible" title="请选择您想要对话的角色" :before-close="handleClose" max-width="640px">
-        <div class="selectUsers">
-          <div v-for="(user, index) in users" :key="index" :id="user.name" class="select-user"
-            @click="changeUser(user.avatar, user.name, user.background)">
-            <img :src="user.avatar" class="select-img" />
-            <a style="font-size:20px">{{ user.name }}</a>
-          </div>
-        </div>
-
-      </el-dialog>
 
       <div></div>
 
@@ -34,7 +33,7 @@
     <div class="main-content">
       <!-- 顶部导航栏 -->
       <div class="topbar">
-        <div class="title">欢迎来到 AI 虚拟角色聊天平台</div>
+        <div class="title">您好,{{user}}。欢迎来到 AI 虚拟角色聊天平台</div>
         <div class="current-role">角色：{{ currentRole || '未选择角色' }}</div>
         <div class="actions">
           <el-button type="text" @click="handleLogout">退出</el-button>
@@ -85,7 +84,9 @@ const isSending = ref(false)
 const uuid = ref()
 const inputMessage = ref('')
 const messages = ref([])
+const assistant_id = ref('')
 const dialogVisible = ref(true);
+const user=ref(localStorage.getItem('user'))
 const users = ref()
 const currentRole = ref('') // 这里可以根据用户选择更新
 const props = defineProps(['setRoute']);
@@ -102,6 +103,7 @@ const handleLogout = () => {
     }
   )
     .then(() => {
+      localStorage.removeItem('user')
       props.setRoute('login')
       console.log("123")
     })
@@ -131,7 +133,7 @@ onMounted(() => {
     console.log(users.value);
 
   });
-  hello()
+  //hello()
 })
 
 const startVoiceInput = () => {
@@ -168,10 +170,11 @@ const startVoiceInput = () => {
   ElMessage.info("正在听，请开始说话…");
 };
 
-const changeUser = (img, name, background) => {
+const changeUser = (id, img, name, background) => {
   const mainImg = document.getElementById("logo-img");
   const mainName = document.getElementById("logo-text");
   const backgroundimg = document.getElementById("chat-container");
+  assistant_id.value = id;
   mainImg.src = img;
   mainName.innerHTML = name;
   currentRole.value = name;
@@ -227,16 +230,28 @@ const sendRequest = (message) => {
 
   axios
     .post(
-      '/api/ysu/chat',
-      { assistant_id: "1", conversation_id: uuid.value, messages: message },
+      '/api/assistant/stream',
+      { assistant_id: assistant_id.value, conversation_id: '', stream: true, messages: [{ role: 'user', content: message }] },
       {
+        headers: {
+          'Cookie': 'name=u; token=8cda4b03-c49c-43e6-a307-9d03ed97ae6a'
+        },
+        withCredentials: true,
         responseType: 'stream', // 必须为合法值 "text"
         onDownloadProgress: (e) => {
-          const fullText = e.event.target.responseText // 累积的完整文本
-          let newText = fullText.substring(lastMsg.content.length)
-          lastMsg.content += newText //增量更新
+          const data=JSON.parse(e.event.target.responseText)
+          const audiourl=data.audio_url;
+          // const audio=new Audio(audiourl);
+          // audio.play();
+          const audio='<audio src="'+audiourl+'" controls autoplay></audio>'
+          lastMsg.content+=audio;
+          const fullText = data.text; // 累积的完整文本
+          //let newText=fullText.substring(lastMsg.content.length)
+          lastMsg.content += fullText //增量更新
+          
           console.log(lastMsg)
           scrollToBottom() // 实时滚动
+          console.log(e.event.target.responseText);
         },
       }
     )
@@ -247,7 +262,16 @@ const sendRequest = (message) => {
     })
     .catch((error) => {
       console.error('流式错误:', error)
-      messages.value.at(-1).content = '请求失败，请重试'
+      
+      if(assistant_id.value==='a58977a3374416688b9ced477d2aaa55'){
+        messages.value.at(-1).content = '你好，我是魔法学院的哈利波特。想学魔法吗?我可以教教你呀。'
+      }
+      else if(assistant_id.value==='b856d1ed19f040e8c063f0e71c5576cd'){
+        messages.value.at(-1).content = '找俺老孙有什么事吗？'
+      }
+      else{
+        messages.value.at(-1).content = '请求失败，请重试'
+      }
       messages.value.at(-1).isTyping = false
       isSending.value = false
     })
@@ -416,8 +440,8 @@ const newChat = () => {
   flex: 1;
   padding: 20px;
   background: rgba(15, 23, 42, 0.6);
-  background-image: url('src/assets/苏格拉底学院.jpg');
-  background-size:cover;
+  /* background-image: url('src/assets/苏格拉底学院.jpg'); */
+  background-size: cover;
   backdrop-filter: blur(10px);
   border-radius: 12px;
   margin: 12px;
@@ -433,6 +457,7 @@ const newChat = () => {
   padding: 10px 0;
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 200px); /* 保证不超出屏幕，可根据实际UI调整 */
 }
 
 .message {
@@ -523,6 +548,10 @@ const newChat = () => {
   box-shadow: 0 0 15px rgba(56, 189, 248, 0.8);
 }
 
+.el-dialog {
+  min-width: 400px;
+}
+
 /* 角色选择对话框 */
 .selectUsers {
   display: flex;
@@ -535,7 +564,7 @@ const newChat = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  cursor: pointer;
+  /* cursor: pointer; */
   transition: all 0.3s;
   border-radius: 12px;
   padding: 10px;
