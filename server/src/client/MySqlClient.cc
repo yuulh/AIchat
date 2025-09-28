@@ -98,7 +98,7 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
                         val = std::to_string(arr[i].as_int());
                     } else if (arr[i].is_ulonglong()) {
                         val = std::to_string(arr[i].as_ulonglong());
-                    } else if (arr[i].is_date() || arr[i].is_time() || arr[i].is_datetime()) {
+                    } else if (arr[i].is_string() || arr[i].is_date() || arr[i].is_time() || arr[i].is_datetime()) {
                         val = arr[i].as_string();
                     } else if (arr[i].is_null()) {
                         val = "NULL";
@@ -108,6 +108,7 @@ void MySqlClient::mysql_callback(WFMySQLTask* task)
                     
                     setResp(row, key, val);
                 }
+                sprintf(logBuf, "row: %s", row.dump().c_str());
                 client->mysql_resp.push_back(row);
             }
         

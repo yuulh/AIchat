@@ -257,6 +257,7 @@ void ChatBp::setBP()
         string conversation_id = body["conversation_id"];
         string assistant_prompt;
         // 第一次聊天需要获取角色设定
+        LOG_DEBUG("开始获取角色设定");
         if(conversation_id.empty()){
             string key = "assistant_" + body["assistant_id"].get<string>();
             redisClient->GET(key, [&](WFRedisTask *task){
@@ -267,9 +268,10 @@ void ChatBp::setBP()
                 
                 WFFacilities::WaitGroup wait_get_prompt(1);
                 if(redis_ret.empty()) {
+                    LOG_DEBUG("缓存未命中");
                     // 去数据库查询
                     mysqlClient->setDB("AIchat");
-                    const string sql = "SELECT prompt FROM prompt WHERE assistant_id = \"" + body["assistant_id"].get<string>() + "\"";
+                    const string sql = "SELECT prompt FROM prompt WHERE assistant_id = '" + body["assistant_id"].get<string>() + "';";
                     mysqlClient->execute(sql , [&](WFMySQLTask *task){
                         Json ret = GET_MYSQL_RESP;
 
@@ -290,10 +292,12 @@ void ChatBp::setBP()
                     });
                 }else{
                     // 缓存命中
+                    LOG_DEBUG("缓存命中");
                     assistant_prompt = Json::parse(redis_ret[0])[0]["prompt"].get<string>();  // TODO: 优化此处性能
                     wait_get_prompt.done();
                 }
                 wait_get_prompt.wait();
+                LOG_DEBUG("获取角色设定完成");
 
                 send_model["messages"].push_back(Json::Object{
                    {"role", "system"},
@@ -325,7 +329,7 @@ void ChatBp::setBP()
             send_model["messages"].push_back(body["messages"][0]);
 
             // 更新update_time
-            const string sql = "UPDATE conversation SET update_time = \"" + getCurrDateTime() + "\" WHERE conversation_id = \"" + conversation_id + "\"";
+            const string sql = "UPDATE conversation SET update_time = '" + getCurrDateTime() + "' WHERE conversation_id = '" + conversation_id + "';";
             mysqlClient->execute(sql, nullptr);
 
             // 更新会话中的messages
@@ -382,6 +386,7 @@ void ChatBp::setBP()
             WFFacilities::WaitGroup wait_voice(1);
             LOG_DEBUG("开始获取音色");
             redisClient->GET("tts_voice_" + body["assistant_id"].get<string>(), [&](WFRedisTask *task){
+                LOG_DEBUG("获取音色callback");
                 protocol::RedisValue redis_value = GET_REDIS_RESP;
                 vector<string> redis_ret;
                 redisClient->parseResp(redis_value, redis_ret);
@@ -391,9 +396,10 @@ void ChatBp::setBP()
 
                 if(redis_ret.empty()){
                     // 缓存未命中
+                    LOG_DEBUG("缓存未命中");
                     // 去数据库查询
                     mysqlClient->setDB("AIchat");
-                    const string sql = "SELECT voice_type FROM assistant_all WHERE assistant_id = \"" + body["assistant_id"].get<string>() + "\"";
+                    const string sql = "SELECT voice_type FROM assistant_all WHERE assistant_id = '" + body["assistant_id"].get<string>() + "';";
                     mysqlClient->execute(sql , [&](WFMySQLTask *task){
                         Json ret = GET_MYSQL_RESP;
                         if(ret.is_null()){
@@ -407,6 +413,7 @@ void ChatBp::setBP()
                     });
                 }else{
                     // 缓存命中
+                    LOG_DEBUG("缓存命中");
                     voice_type = redis_ret[0];
                     wait_voice.done();
                 }
@@ -510,7 +517,7 @@ void ChatBp::setBP()
 
         LOG_DEBUG("文件打开成功");
 
-        string audio_url = "http://47.109.39.124/public/";
+        string audio_url = "http://" + CONFIG["SERVER_HOST"] +"/public/";
 
 
         sprintf(logBuf, "tts_resp dump size: %ld", tts_resp.dump().size());

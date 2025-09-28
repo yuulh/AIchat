@@ -1,4 +1,0 @@
-#ifndef ROCKET_PRODUCER_H
-#define ROCKET_PRODUCER_H
-
-#endif

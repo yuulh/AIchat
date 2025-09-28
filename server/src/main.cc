@@ -27,7 +27,7 @@ int main()
 
     UserBp userBp;
     userBp.setBP();
-    svr.register_blueprint(userBp.getBP(), "/user");
+    svr.register_blueprint(userBp.getBP(), "/api/user");
 
 
     if (svr.start(atoi(CONFIG["PORT"].c_str())) == 0){

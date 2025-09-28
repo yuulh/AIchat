@@ -25,6 +25,7 @@ void Configuration::init()
     // 加载默认配置
     this->configs = {
         {"logConfigPath", dirname + "/server/config/log4cpp.conf"},
+        {"SERVER_HOST", "47.109.39.124"},
         {"PORT", "8090"},  // 启动端口
         {"LLM_URL", "https://openai.qiniu.com/v1/chat/completions"},  // 大模型api的url
         {"TTS_URL", "https://openai.qiniu.com/v1/voice/tts"},  // 文本转语音api的url"}
